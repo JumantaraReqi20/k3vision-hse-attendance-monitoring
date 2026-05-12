@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn==0.30.0
+python-multipart==0.0.9
+opencv-contrib-python==4.10.0.84
+numpy==1.26.4
+ultralytics==8.3.4
+cryptography==43.0.1
+python-dotenv==1.0.0
+pydantic==2.5.0
+aiofiles==23.2.1
+deepface

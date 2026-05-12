@@ -1,0 +1,2678 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K3Vision AI • Industrial Safety Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Color Palette - Industrial Theme */
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --success-dark: #15803d;
+            --danger: #dc2626;
+            --danger-dark: #b91c1c;
+            --warning: #ca8a04;
+            --warning-dark: #a16207;
+            --dark-panel: #0f172a;
+            --dark-panel-light: #1e293b;
+            --bg: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --transition: all 0.2s ease-in-out;
+            
+            /* Layout */
+            --header-height: 56px;
+            --sidebar-width: 220px;
+            --sidebar-collapsed: 64px;
+            --camera-aspect: 4/3;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        html { font-size: 14px; scroll-behavior: smooth; }
+        
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===== HEADER / TOP CONTROL BAR ===== */
+        .top-bar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            height: var(--header-height);
+            background: linear-gradient(135deg, var(--dark-panel) 0%, var(--dark-panel-light) 100%);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            backdrop-filter: blur(12px);
+        }
+
+        .top-bar__left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-decoration: none;
+        }
+
+        .logo__icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--success));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .logo__text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .logo__title { font-size: 1rem; }
+        .logo__subtitle { font-size: 0.7rem; color: var(--text-muted); font-weight: 400; }
+
+        .top-bar__center {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--success);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.9); }
+        }
+
+        .top-bar__right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .realtime-clock {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            background: rgba(255,255,255,0.1);
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        .camera-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .camera-status__dot {
+            width: 6px;
+            height: 6px;
+            background: var(--warning);
+            border-radius: 50%;
+        }
+
+        .camera-status.active .camera-status__dot { background: var(--success); }
+
+        /* Camera selector styling */
+        #cameraSelect {
+            padding: 6px 10px !important;
+            border-radius: 6px !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: white !important;
+            font-size: 0.85rem !important;
+            cursor: pointer !important;
+            max-width: 220px !important;
+            transition: var(--transition);
+        }
+
+        #cameraSelect:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border-color: rgba(255, 255, 255, 0.5) !important;
+        }
+
+        #cameraSelect:focus {
+            outline: none !important;
+            background: rgba(255, 255, 255, 0.2) !important;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3) !important;
+        }
+
+        #cameraSelect option {
+            background: var(--dark-panel) !important;
+            color: white !important;
+            padding: 8px !important;
+        }
+
+        /* ===== SIDEBAR NAVIGATION ===== */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: var(--header-height);
+            bottom: 0;
+            width: var(--sidebar-width);
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 20px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: var(--transition);
+            z-index: 90;
+        }
+
+        .sidebar.collapsed { width: var(--sidebar-collapsed); }
+        .sidebar.collapsed .nav-item__label,
+        .sidebar.collapsed .nav-item__badge,
+        .sidebar.collapsed .sidebar__footer { display: none; }
+        .sidebar.collapsed .nav-item__icon { margin: 0 auto; }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-item:hover {
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(37, 99, 235, 0.05));
+            color: var(--primary);
+            border-left: 3px solid var(--primary);
+            padding-left: 13px;
+        }
+
+        .nav-item__icon {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .nav-item__label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nav-item__badge {
+            background: var(--danger);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .sidebar__footer {
+            margin-top: auto;
+            padding: 16px 12px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .sidebar-toggle {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .sidebar-toggle:hover { background: var(--border); }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: var(--header-height);
+            padding: 24px;
+            flex: 1;
+            transition: var(--transition);
+        }
+
+        .sidebar.collapsed + .main-content { margin-left: var(--sidebar-collapsed); }
+
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .page-header {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .page-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+        .page-subtitle { color: var(--text-secondary); font-size: 0.95rem; }
+
+        /* ===== GRID LAYOUTS ===== */
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 70% 30%;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .grid-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+        }
+
+        .card__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card__title { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+        .card__subtitle { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* ===== CAMERA / VIDEO WRAP - GLASSMORPHISM ===== */
+        .live-camera-dashboard {
+            position: relative;
+            background: var(--dark-panel);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            aspect-ratio: var(--camera-aspect);
+            box-shadow: var(--shadow-glass), 0 0 0 1px rgba(255,255,255,0.1) inset;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .live-camera-dashboard video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transform: scaleX(-1);
+        }
+
+        .camera-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .annotation-frame {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .camera-status-overlay {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            z-index: 3;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: white;
+        }
+
+        .status-badge__dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-badge--ok .status-badge__dot { background: var(--success); }
+        .status-badge--warn .status-badge__dot { background: var(--warning); }
+        .status-badge--danger .status-badge__dot { background: var(--danger); }
+
+        .camera-recording {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(220, 38, 38, 0.9);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 3;
+        }
+
+        .camera-recording__dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        /* ===== CONTROLS ===== */
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            border: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 140px;
+            justify-content: center;
+        }
+
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+        .btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+        
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover:not(:disabled) { background: var(--success-dark); }
+        
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover:not(:disabled) { background: var(--danger-dark); }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-primary);
+        }
+        .btn-outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+
+        .btn-lg { padding: 16px 32px; font-size: 1.05rem; min-width: 180px; }
+
+        /* ===== FORMS ===== */
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-weight: 500; margin-bottom: 6px; color: var(--text-primary); font-size: 0.9rem; }
+        .form-label__required { color: var(--danger); margin-left: 2px; }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 0.95rem;
+            transition: var(--transition);
+            background: var(--bg-card);
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .capture-preview {
+            display: none;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background: var(--bg);
+        }
+
+        .capture-preview.show { display: block; }
+
+        .capture-preview__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .capture-preview__image {
+            width: 100%;
+            max-height: 260px;
+            object-fit: contain;
+            display: block;
+            background: var(--dark-panel);
+        }
+
+        .file-input-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* ===== RESULT BOXES ===== */
+        .result-box {
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: var(--radius-md);
+            background: var(--bg);
+            border-left: 4px solid var(--border);
+            font-size: 0.95rem;
+            display: none;
+        }
+
+        .result-box.show { display: block; animation: slideIn 0.2s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+
+        .result-box.accepted { border-left-color: var(--success); background: rgba(22, 163, 74, 0.08); }
+        .result-box.rejected { border-left-color: var(--danger); background: rgba(220, 38, 38, 0.08); }
+
+        .ppe-status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .ppe-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .ppe-item.ok { background: rgba(22, 163, 74, 0.15); color: var(--success-dark); }
+        .ppe-item.missing { background: rgba(220, 38, 38, 0.15); color: var(--danger-dark); }
+
+        /* ===== SIDE PANEL CARDS ===== */
+        .monitoring-side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .status-widget {
+            background: linear-gradient(135deg, var(--dark-panel) 0%, var(--dark-panel-light) 100%);
+            color: white;
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .status-widget__title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-widget__value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .status-widget__trend {
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-widget__trend.up { color: var(--success); }
+        .status-widget__trend.down { color: var(--danger); }
+
+        .log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .log-list::-webkit-scrollbar { width: 4px; }
+        .log-list::-webkit-scrollbar-track { background: transparent; }
+        .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .log-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: var(--bg);
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+        }
+
+        .log-item__name { font-weight: 500; color: var(--text-primary); }
+        .log-item__time { color: var(--text-muted); font-size: 0.8rem; }
+        .log-item__status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .log-item__status.accepted { background: rgba(22, 163, 74, 0.15); color: var(--success-dark); }
+        .log-item__status.rejected { background: rgba(220, 38, 38, 0.15); color: var(--danger-dark); }
+
+        /* ===== TABLES ===== */
+        .table-container {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: var(--bg);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: rgba(37, 99, 235, 0.03); }
+
+        /* ===== DASHBOARD STATS ===== */
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+
+        .stat-card__icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 1.3rem;
+        }
+
+        .stat-card__icon.blue { background: rgba(37, 99, 235, 0.12); color: var(--primary); }
+        .stat-card__icon.green { background: rgba(22, 163, 74, 0.12); color: var(--success); }
+        .stat-card__icon.red { background: rgba(220, 38, 38, 0.12); color: var(--danger); }
+        .stat-card__icon.yellow { background: rgba(202, 138, 4, 0.12); color: var(--warning); }
+
+        .stat-card__value { font-size: 1.8rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+        .stat-card__label { font-size: 0.85rem; color: var(--text-secondary); }
+
+        .compliance-ring {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: conic-gradient(var(--success) 0%, var(--success) var(--pct, 0%), var(--border) var(--pct, 0%) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .compliance-ring::before {
+            content: '';
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--bg-card);
+        }
+
+        .compliance-ring__value {
+            position: relative;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* ===== LOADING ===== */
+        .loading {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .loading.show { display: flex; }
+
+        .loading__spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== FLOATING CONTROLS (Monitoring) ===== */
+        .floating-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+            padding: 8px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            border-radius: var(--radius-xl);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .floating-controls .btn {
+            padding: 10px 20px;
+            min-width: auto;
+            font-size: 0.9rem;
+        }
+
+        /* ===== WARNING PANEL ===== */
+        .warning-panel {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(185, 28, 28, 0.1));
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            border-left: 4px solid var(--danger);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .warning-panel.show { display: block; animation: shake 0.3s ease; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        .warning-panel__icon { color: var(--danger); margin-right: 8px; font-size: 1.1rem; }
+        .warning-panel__text { font-weight: 500; color: var(--danger-dark); }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1400px) {
+            .grid-2col { grid-template-columns: 1fr; }
+            .monitoring-side-panel { flex-direction: row; flex-wrap: wrap; }
+            .monitoring-side-panel .card { flex: 1 1 200px; }
+        }
+
+        @media (max-width: 1024px) {
+            :root { --sidebar-width: 64px; }
+            .sidebar { width: var(--sidebar-collapsed); }
+            .sidebar .nav-item__label,
+            .sidebar .nav-item__badge,
+            .sidebar .sidebar__footer { display: none; }
+            .sidebar .nav-item__icon { margin: 0 auto; }
+            .main-content { margin-left: var(--sidebar-collapsed); }
+            .form-row { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .top-bar { padding: 0 12px; }
+            .logo__subtitle { display: none; }
+            .main-content { padding: 16px; margin-left: 0 !important; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .grid-cards { grid-template-columns: repeat(2, 1fr); }
+            .ppe-status-grid { grid-template-columns: 1fr; }
+            .floating-controls { bottom: 12px; }
+        }
+
+        /* ===== UTILITIES ===== */
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .text-success { color: var(--success); }
+        .text-danger { color: var(--danger); }
+        .fw-600 { font-weight: 600; }
+        .mb-8 { margin-bottom: 8px; }
+        .mb-16 { margin-bottom: 16px; }
+        .mt-16 { margin-top: 16px; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <!-- ===== TOP CONTROL BAR ===== -->
+    <header class="top-bar">
+        <div class="top-bar__left">
+            <a href="#" class="logo">
+                <div class="logo__icon">🛡️</div>
+                <div class="logo__text">
+                    <span class="logo__title">K3Vision AI</span>
+                    <span class="logo__subtitle">Industrial Safety</span>
+                </div>
+            </a>
+        </div>
+        
+        <div class="top-bar__center">
+            <div class="system-status">
+                <span class="status-dot"></span>
+                <span>System Online</span>
+            </div>
+        </div>
+        
+        <div class="top-bar__right">
+            <div class="realtime-clock" id="realtimeClock">--:--:--</div>
+            <select id="cameraSelect" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:white;font-size:0.85rem;cursor:pointer;max-width:200px">
+                <option value="">🎥 Pilih Kamera...</option>
+            </select>
+            <div class="camera-status" id="cameraStatus">
+                <span class="camera-status__dot"></span>
+                <span>Camera: Idle</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== SIDEBAR NAVIGATION ===== -->
+    <nav class="sidebar" id="sidebar">
+        <button class="nav-item active" data-target="dashboard">
+            <span class="nav-item__icon">📊</span>
+            <span class="nav-item__label">Dashboard</span>
+        </button>
+        <button class="nav-item" data-target="attendance">
+            <span class="nav-item__icon">✅</span>
+            <span class="nav-item__label">Kehadiran</span>
+        </button>
+        <button class="nav-item" data-target="workers">
+            <span class="nav-item__icon">👥</span>
+            <span class="nav-item__label">Daftar Pekerja</span>
+        </button>
+        <button class="nav-item" data-target="history">
+            <span class="nav-item__icon">📋</span>
+            <span class="nav-item__label">Riwayat</span>
+        </button>
+        <button class="nav-item" data-target="daily-attendance">
+            <span class="nav-item__icon">📅</span>
+            <span class="nav-item__label">Status Harian</span>
+        </button>
+        <button class="nav-item" data-target="reports">
+            <span class="nav-item__icon">📈</span>
+            <span class="nav-item__label">Laporan</span>
+        </button>
+        <button class="nav-item" data-target="register">
+            <span class="nav-item__icon">📝</span>
+            <span class="nav-item__label">Registrasi</span>
+        </button>
+        <button class="nav-item" data-target="monitor">
+            <span class="nav-item__icon">📡</span>
+            <span class="nav-item__label">Monitoring</span>
+            <span class="nav-item__badge" id="alertBadge" style="display:none">!</span>
+        </button>
+        
+        <div class="sidebar__footer">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <span>☰</span>
+                <span class="nav-item__label">Menu</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+        
+        <!-- ===== DASHBOARD PAGE ===== -->
+        <section id="dashboard" class="page active">
+            <div class="page-header">
+                <h1 class="page-title">📊 Dashboard Overview</h1>
+                <p class="page-subtitle">Real-time safety monitoring & attendance analytics</p>
+            </div>
+            
+            <div class="grid-cards">
+                <div class="stat-card">
+                    <div class="stat-card__icon blue">👥</div>
+                    <div class="stat-card__value" id="statWorkers">-</div>
+                    <div class="stat-card__label">Total Pekerja</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card__icon green">✅</div>
+                    <div class="stat-card__value" id="statToday">-</div>
+                    <div class="stat-card__label">Kehadiran Hari Ini</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card__icon yellow">🦺</div>
+                    <div class="stat-card__value" id="statAccepted">-</div>
+                    <div class="stat-card__label">Diterima (APD Lengkap)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card__icon red">❌</div>
+                    <div class="stat-card__value" id="statRejected">-</div>
+                    <div class="stat-card__label">Ditolak (APD Tidak Lengkap)</div>
+                </div>
+            </div>
+            
+            <div class="grid-2col">
+                <div class="card">
+                    <div class="card__header">
+                        <div>
+                            <div class="card__title">Compliance Rate</div>
+                            <div class="card__subtitle">7 hari terakhir</div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="compliance-ring" id="complianceRing" style="--pct: 0%">
+                            <span class="compliance-ring__value" id="complianceValue">0%</span>
+                        </div>
+                        <div class="ppe-status-grid" style="margin-top:20px">
+                            <div class="ppe-item ok" id="ppeHelmStat">🪖 Helm: -</div>
+                            <div class="ppe-item ok" id="ppeVestStat">🦺 Rompi: -</div>
+                            <div class="ppe-item ok" id="ppeBootsStat">👢 Sepatu: -</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card__header">
+                        <div class="card__title">Aktivitas Terbaru</div>
+                    </div>
+                    <div class="log-list" id="recentActivity">
+                        <div class="text-center text-muted" style="padding:20px">Memuat data...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== ATTENDANCE PAGE ===== -->
+        <section id="attendance" class="page">
+            <div class="page-header">
+                <h1 class="page-title">✅ Scan Kehadiran</h1>
+                <p class="page-subtitle">Verifikasi wajah & kelengkapan APD untuk absensi</p>
+            </div>
+            
+            <div class="grid-2col">
+                <!-- LEFT: Camera Panel (70%) -->
+                <div class="card">
+                    <div class="live-camera-dashboard">
+                        <video id="attVideo" autoplay playsinline muted></video>
+                        <img id="attAnnotated" class="annotation-frame" alt="" style="display:none">
+                        
+                        <div class="camera-status-overlay">
+                            <div class="status-badge status-badge--ok" id="attWorkerDetected" style="display:none">
+                                <span class="status-badge__dot"></span>
+                                <span id="attWorkerName">Worker: -</span>
+                            </div>
+                            <div class="status-badge" id="attHelmStatus">
+                                <span class="status-badge__dot"></span>
+                                <span>🪖 Helmet: -</span>
+                            </div>
+                            <div class="status-badge" id="attVestStatus">
+                                <span class="status-badge__dot"></span>
+                                <span>🦺 Vest: -</span>
+                            </div>
+                            <div class="status-badge" id="attBootsStatus">
+                                <span class="status-badge__dot"></span>
+                                <span>👢 Boots: -</span>
+                            </div>
+                        </div>
+                        
+                        <div class="camera-recording" id="attRecording" style="display:none">
+                            <span class="camera-recording__dot"></span>
+                            <span>SCANNING</span>
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="btnAttCheck" class="btn btn-primary btn-lg">
+                            👤 Scan & Absen
+                        </button>
+                        <button id="btnRefreshView" class="btn btn-outline btn-lg" type="button" data-action="refresh-view" style="display:none">
+                            Refresh Tampilan
+                        </button>
+                    </div>
+                    
+                    <div id="attLoading" class="loading">
+                        <div class="loading__spinner"></div>
+                        <span>Menganalisis wajah & APD...</span>
+                    </div>
+                    
+                    <div id="attResult" class="result-box"></div>
+                </div>
+                
+                <!-- RIGHT: Side Panel (30%) -->
+                <div class="monitoring-side-panel">
+                    <div class="status-widget">
+                        <div class="status-widget__title">PPE Compliance</div>
+                        <div class="ppe-status-grid">
+                            <div class="ppe-item ok" id="sideHelm">🪖 Helm</div>
+                            <div class="ppe-item ok" id="sideVest">🦺 Vest</div>
+                            <div class="ppe-item ok" id="sideBoots">👢 Boots</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card__header">
+                            <div class="card__title">Hasil Absensi</div>
+                        </div>
+                        <div id="sideResult" class="text-center">
+                            <p class="text-muted">Silakan scan untuk melihat hasil</p>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card__header">
+                            <div class="card__title">5 Absensi Terakhir</div>
+                        </div>
+                        <div class="log-list" id="lastAttendance">
+                            <div class="text-center text-muted" style="padding:12px">Memuat...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-widget">
+                        <div class="status-widget__title">System Status</div>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <div style="display:flex;justify-content:space-between;font-size:0.9rem">
+                                <span>🎥 Camera</span>
+                                <span class="text-success">Connected</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.9rem">
+                                <span>🧠 AI Model</span>
+                                <span class="text-success">Loaded</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.9rem">
+                                <span>💾 Database</span>
+                                <span class="text-success">Online</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== WORKERS PAGE ===== -->
+        <section id="workers" class="page">
+            <div class="page-header">
+                <h1 class="page-title">👥 Daftar Pekerja</h1>
+                <p class="page-subtitle">Semua pekerja terdaftar dengan detail profil</p>
+            </div>
+            
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Nama Pekerja</th>
+                                <th>Departemen</th>
+                                <th>Posisi</th>
+                                <th>Email</th>
+                                <th>Telepon</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workersTableBody">
+                            <tr><td colspan="7" class="text-center text-muted" style="padding:24px">🔄 Loading data pekerja...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== HISTORY PAGE ===== -->
+        <section id="history" class="page">
+            <div class="page-header">
+                <h1 class="page-title">📋 Riwayat Kehadiran</h1>
+                <p class="page-subtitle">Log absensi dengan filter status</p>
+            </div>
+            
+            <div class="card" style="margin-bottom:20px">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+                    <button class="btn btn-primary" data-filter="all">Semua</button>
+                    <button class="btn btn-outline" data-filter="accepted">✅ Diterima</button>
+                    <button class="btn btn-outline" data-filter="rejected">❌ Ditolak</button>
+                    <div style="margin-left:auto;display:flex;gap:8px">
+                        <input type="text" class="form-input" id="historySearch" placeholder="🔍 Cari pekerja..." style="width:200px">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Pekerja</th>
+                                <th>Waktu</th>
+                                <th>Status</th>
+                                <th>🪖 Helm</th>
+                                <th>🦺 Rompi</th>
+                                <th>👢 Sepatu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr><td colspan="7" class="text-center text-muted" style="padding:24px">🔄 Loading data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== DAILY ATTENDANCE PAGE ===== -->
+        <section id="daily-attendance" class="page">
+            <div class="page-header">
+                <h1 class="page-title">📅 Status Kehadiran Harian</h1>
+                <p class="page-subtitle">Daftar lengkap semua pekerja dan status kehadiran mereka</p>
+            </div>
+            
+            <div class="card" style="margin-bottom:20px">
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                    <div class="form-group" style="margin-bottom:0;flex:1;min-width:200px">
+                        <label class="form-label">Pilih Tanggal</label>
+                        <input type="date" class="form-input" id="dailyAttendanceDate" style="width:100%">
+                    </div>
+                    <button id="btnLoadDailyAttendance" class="btn btn-primary" style="align-self:flex-end">
+                        🔄 Tampilkan Data
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card__header">
+                    <div class="card__title" id="dailyAttendanceTitle">Status Kehadiran - Pilih Tanggal</div>
+                </div>
+                <div id="dailyAttendanceLoading" class="loading">
+                    <div class="loading__spinner"></div>
+                    <span>Memuat data...</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Nama Pekerja</th>
+                                <th>Departemen</th>
+                                <th>Posisi</th>
+                                <th>Status</th>
+                                <th>Waktu Absen</th>
+                                <th>🪖 Helm</th>
+                                <th>🦺 Rompi</th>
+                                <th>👢 Sepatu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dailyAttendanceBody">
+                            <tr><td colspan="9" class="text-center text-muted" style="padding:24px">Pilih tanggal terlebih dahulu</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card mt-16">
+                <div class="card__header">
+                    <div class="card__title">📊 Ringkasan Hari Ini</div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
+                    <div class="stat-card">
+                        <div class="stat-card__icon blue">👥</div>
+                        <div class="stat-card__value" id="dailySummaryTotal">0</div>
+                        <div class="stat-card__label">Total Pekerja</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__icon green">✅</div>
+                        <div class="stat-card__value" id="dailySummaryPresent">0</div>
+                        <div class="stat-card__label">Hadir</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__icon red">❌</div>
+                        <div class="stat-card__value" id="dailySummaryAbsent">0</div>
+                        <div class="stat-card__label">Tidak Hadir</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__icon yellow">⚠️</div>
+                        <div class="stat-card__value" id="dailySummaryIncomplete">0</div>
+                        <div class="stat-card__label">APE Tidak Lengkap</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== REPORTS PAGE ===== -->
+        <section id="reports" class="page">
+            <div class="page-header">
+                <h1 class="page-title">📈 Laporan & Analytics</h1>
+                <p class="page-subtitle">Generate laporan compliance APD</p>
+            </div>
+            
+            <div class="grid-2col">
+                <div class="card">
+                    <div class="card__header">
+                        <div class="card__title">📊 Generate Laporan</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:16px">
+                        <div class="form-row">
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label">Tanggal Mulai</label>
+                                <input type="date" class="form-input" id="reportStartDate">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label">Tanggal Akhir</label>
+                                <input type="date" class="form-input" id="reportEndDate">
+                            </div>
+                        </div>
+                        <button id="btnGenerateReport" class="btn btn-primary">
+                            🔄 Refresh Laporan
+                        </button>
+                        <div id="reportLoading" class="loading">
+                            <div class="loading__spinner"></div>
+                            <span>Mengolah data...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card__header">
+                        <div class="card__title">Ringkasan</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                        <div style="display:flex;justify-content:space-between">
+                            <span class="text-muted">Total Attendance</span>
+                            <strong id="rptTotal">-</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between">
+                            <span class="text-muted">Diterima (Lengkap)</span>
+                            <strong class="text-success" id="rptAccepted">-</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between">
+                            <span class="text-muted">Ditolak (Tidak Lengkap)</span>
+                            <strong class="text-danger" id="rptRejected">-</strong>
+                        </div>
+                        <hr style="border:0;border-top:1px solid var(--border)">
+                        <div style="display:flex;justify-content:space-between">
+                            <span class="text-muted">Compliance Rate</span>
+                            <strong id="rptCompliance">-</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-16">
+                <div class="card__header">
+                    <div class="card__title">✅ Compliance APD</div>
+                </div>
+                <div class="ppe-status-grid">
+                    <div class="status-widget text-center">
+                        <div style="font-size:2rem;margin-bottom:8px">🪖</div>
+                        <div class="status-widget__value" id="rptHelm">-</div>
+                        <div class="status-widget__title">Helm Compliance</div>
+                    </div>
+                    <div class="status-widget text-center">
+                        <div style="font-size:2rem;margin-bottom:8px">🦺</div>
+                        <div class="status-widget__value" id="rptVest">-</div>
+                        <div class="status-widget__title">Rompi Compliance</div>
+                    </div>
+                    <div class="status-widget text-center">
+                        <div style="font-size:2rem;margin-bottom:8px">👢</div>
+                        <div class="status-widget__value" id="rptBoots">-</div>
+                        <div class="status-widget__title">Sepatu Compliance</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-16">
+                <div class="card__header">
+                    <div class="card__title">📝 Detail Per Pekerja</div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pekerja</th>
+                                <th>Diterima</th>
+                                <th>Ditolak</th>
+                                <th>Total</th>
+                                <th>Helm %</th>
+                                <th>Rompi %</th>
+                                <th>Sepatu %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <tr><td colspan="7" class="text-center text-muted" style="padding:24px">Generate laporan untuk melihat data</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== REGISTER PAGE ===== -->
+        <section id="register" class="page">
+            <div class="page-header">
+                <h1 class="page-title">📝 Registrasi Pekerja</h1>
+                <p class="page-subtitle">Daftarkan pekerja baru dengan face enrollment & enkripsi</p>
+            </div>
+            
+            <div class="grid-2col">
+                <!-- LEFT: Camera Capture -->
+                <div class="card">
+                    <div class="live-camera-dashboard">
+                        <video id="regVideo" autoplay playsinline muted></video>
+                        <canvas id="regCanvas" class="camera-overlay"></canvas>
+                        
+                        <div class="camera-status-overlay">
+                            <div class="status-badge status-badge--ok" id="regFaceDetected" style="display:none">
+                                <span class="status-badge__dot"></span>
+                                <span>✅ Wajah Terdeteksi</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="btnRegCapture" class="btn btn-outline">
+                            📸 Capture Wajah
+                        </button>
+                        <label for="regUpload" class="btn btn-outline">
+                            Upload Gambar
+                        </label>
+                        <input id="regUpload" class="file-input-hidden" type="file" accept="image/*">
+                        <button id="btnRegSubmit" class="btn btn-success" disabled>
+                            🔒 Register & Enkripsi
+                        </button>
+                    </div>
+
+                    <div id="regPreview" class="capture-preview">
+                        <div class="capture-preview__header">
+                            <span>Preview gambar registrasi</span>
+                            <span id="regPreviewSource">Belum ada gambar</span>
+                        </div>
+                        <img id="regPreviewImg" class="capture-preview__image" alt="Preview wajah registrasi">
+                    </div>
+                    
+                    <div id="regLoading" class="loading">
+                        <div class="loading__spinner"></div>
+                        <span>Memproses registrasi & enkripsi wajah...</span>
+                    </div>
+                    
+                    <div id="regResult" class="result-box"></div>
+                </div>
+                
+                <!-- RIGHT: Form -->
+                <div class="card">
+                    <div class="card__header">
+                        <div class="card__title">📋 Detail Pekerja</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">👤 Nama Lengkap <span class="form-label__required">*</span></label>
+                        <input type="text" class="form-input" id="workerName" placeholder="Contoh: Ahmad Rizki">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">🏢 Departemen</label>
+                            <input type="text" class="form-input" id="workerDept" placeholder="Contoh: Maintenance">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">💼 Posisi/Jabatan</label>
+                            <input type="text" class="form-input" id="workerPosition" placeholder="Contoh: Technician">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">📧 Email</label>
+                            <input type="email" class="form-input" id="workerEmail" placeholder="ahmad@company.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">📱 Nomor Telepon</label>
+                            <input type="tel" class="form-input" id="workerPhone" placeholder="0812-3456-7890">
+                        </div>
+                    </div>
+                    
+                    <div style="background:var(--bg);padding:12px;border-radius:var(--radius-md);margin-top:20px;font-size:0.85rem;color:var(--text-secondary)">
+                        <strong>🔐 Keamanan Data:</strong> Foto wajah dienkripsi sebelum disimpan ke database. Hanya sistem yang dapat mendekripsi untuk proses identifikasi.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== MONITORING PAGE ===== -->
+        <section id="monitor" class="page">
+            <div class="page-header">
+                <h1 class="page-title">📡 Monitoring Live</h1>
+                <p class="page-subtitle">Real-time surveillance dengan AI detection overlay</p>
+            </div>
+            
+            <div class="grid-2col">
+                <!-- LEFT: Live Camera (70%) -->
+                <div class="card" style="padding:0;overflow:hidden">
+                    <div class="live-camera-dashboard" style="border-radius:0">
+                        <video id="monVideo" autoplay playsinline muted></video>
+                        <img id="monAnnotated" class="annotation-frame" alt="" style="display:none">
+                        
+                        <div class="camera-status-overlay">
+                            <div class="status-badge status-badge--ok" id="monPersonDetected" style="display:none">
+                                <span class="status-badge__dot"></span>
+                                <span>👤 Person Detected</span>
+                            </div>
+                            <div class="status-badge" id="monHelmBadge">
+                                <span class="status-badge__dot"></span>
+                                <span>🪖 Helmet</span>
+                            </div>
+                            <div class="status-badge" id="monVestBadge">
+                                <span class="status-badge__dot"></span>
+                                <span>🦺 Vest</span>
+                            </div>
+                            <div class="status-badge" id="monBootsBadge">
+                                <span class="status-badge__dot"></span>
+                                <span>👢 Boots</span>
+                            </div>
+                        </div>
+                        
+                        <div class="camera-recording" id="monLiveIndicator" style="display:none">
+                            <span class="camera-recording__dot"></span>
+                            <span>LIVE</span>
+                        </div>
+                        
+                        <!-- Floating Controls -->
+                        <div class="floating-controls">
+                            <button id="btnMonStart" class="btn btn-success">
+                                ▶️ Mulai
+                            </button>
+                            <button id="btnMonStop" class="btn btn-danger" disabled>
+                                ⏹️ Stop
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- RIGHT: Warning Panel (30%) -->
+                <div class="monitoring-side-panel">
+                    <div class="warning-panel" id="monWarning">
+                        <span class="warning-panel__icon"></span>
+                        <span class="warning-panel__text" id="monWarningText">Warning message</span>
+                    </div>
+                    
+                    <div class="status-widget">
+                        <div class="status-widget__title">PPE Status</div>
+                        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+                            <div style="display:flex;align-items:center;justify-content:space-between">
+                                <span>🪖 Safety Helmet</span>
+                                <span class="status-badge status-badge--ok" id="monHelmStatus">✅</span>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between">
+                                <span>🦺 Safety Vest</span>
+                                <span class="status-badge status-badge--ok" id="monVestStatus">✅</span>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between">
+                                <span>👢 Safety Boots</span>
+                                <span class="status-badge status-badge--ok" id="monBootsStatus">✅</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card__header">
+                            <div class="card__title">Detection Log</div>
+                        </div>
+                        <div class="log-list" id="monLog">
+                            <div class="text-center text-muted" style="padding:12px">Start monitoring to see detections</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-widget">
+                        <div class="status-widget__title">System Info</div>
+                        <div style="font-size:0.85rem;line-height:1.8">
+                            <div>🎥 Resolution: <strong>640×480</strong></div>
+                            <div>🧠 Model: <strong>YOLOv11n</strong></div>
+                            <div>⚡ FPS Target: <strong>~8 FPS</strong></div>
+                            <div>🔗 Status: <span id="monConnStatus" class="text-success">Ready</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Hidden canvas for frame capture -->
+    <canvas id="hiddenCanvas" style="display:none"></canvas>
+
+    <script>
+        // ===== CONFIG =====
+        const API = 'http://127.0.0.1:8000';
+        let streams = {};
+        let monAbort = null;
+        let monRunning = false;
+        const MONITOR_INTERVAL_MS = 15000;
+        let regBlob = null;
+        let regPreviewUrl = null;
+        let attBlob = null;
+        let selectedCameraId = localStorage.getItem('selectedCameraId') || '';
+
+        // ===== CAMERA ENUMERATION & SELECTION =====
+        async function enumerateCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoInputs = devices.filter(device => device.kind === 'videoinput');
+                const cameraSelect = document.getElementById('cameraSelect');
+                
+                // Clear existing options except the first one
+                while (cameraSelect.options.length > 1) {
+                    cameraSelect.remove(1);
+                }
+                
+                // Add all available cameras
+                videoInputs.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                
+                // Restore previously selected camera or use default
+                if (selectedCameraId && [...cameraSelect.options].some(opt => opt.value === selectedCameraId)) {
+                    cameraSelect.value = selectedCameraId;
+                } else if (videoInputs.length > 0) {
+                    // Prefer external camera (usually not index 0)
+                    cameraSelect.value = videoInputs.length > 1 ? videoInputs[1].deviceId : videoInputs[0].deviceId;
+                    selectedCameraId = cameraSelect.value;
+                }
+            } catch (e) {
+                console.error('Error enumerating cameras:', e);
+            }
+        }
+
+        // Enumerate cameras on page load
+        document.addEventListener('DOMContentLoaded', enumerateCameras);
+
+        // Listen for camera selection change
+        document.getElementById('cameraSelect').addEventListener('change', (e) => {
+            selectedCameraId = e.target.value;
+            localStorage.setItem('selectedCameraId', selectedCameraId);
+            
+            // Reinitialize camera for active page
+            const activePage = document.querySelector('.page.active')?.id;
+            if (['attendance', 'register', 'monitor'].includes(activePage)) {
+                initCamera(activePage);
+            }
+        });
+
+        // Re-enumerate cameras when permissions might have changed
+        navigator.mediaDevices.addEventListener('devicechange', enumerateCameras);
+
+        // ===== REALTIME CLOCK =====
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('realtimeClock').textContent = 
+                now.toLocaleTimeString('id-ID', { hour12: false });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ===== SIDEBAR TOGGLE =====
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+
+        // ===== NAVIGATION =====
+        document.querySelectorAll('.nav-item').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                
+                tab.classList.add('active');
+                const target = tab.dataset.target;
+                document.getElementById(target).classList.add('active');
+                
+                // Init camera for relevant pages
+                if (['attendance', 'register', 'monitor'].includes(target)) {
+                    initCamera(target);
+                }
+                
+                // Load data for dashboard pages
+                if (target === 'dashboard') loadDashboardStats();
+                if (target === 'attendance') loadLatestAttendance();
+                if (target === 'workers') loadWorkers();
+                if (target === 'history') loadHistory();
+                if (target === 'daily-attendance') loadDailyAttendance();
+                if (target === 'reports') loadReport();
+            });
+        });
+
+        // ===== CAMERA INIT =====
+        async function initCamera(section) {
+            const videoId = section === 'register' ? 'regVideo' : 
+                           section === 'attendance' ? 'attVideo' : 'monVideo';
+            const video = document.getElementById(videoId);
+            
+            // Stop existing stream
+            if (streams[section]) {
+                streams[section].getTracks().forEach(t => t.stop());
+            }
+            
+            try {
+                // Camera constraints with selected device
+                const constraints = { 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    } 
+                };
+                
+                // If a camera is selected, use its deviceId
+                if (selectedCameraId) {
+                    constraints.video.deviceId = { exact: selectedCameraId };
+                }
+                
+                streams[section] = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = streams[section];
+                
+                // Update status indicator
+                const statusEl = document.getElementById('cameraStatus');
+                if (statusEl) {
+                    statusEl.classList.add('active');
+                    const selectedOption = document.querySelector(`#cameraSelect option[value="${selectedCameraId}"]`);
+                    const cameraName = selectedOption ? selectedOption.text : 'Camera';
+                    statusEl.querySelector('span:last-child').textContent = `Camera: ${cameraName}`;
+                }
+            } catch (e) { 
+                console.error('Camera error:', e);
+                alert('⚠️ Kamera tidak dapat diakses. Pastikan izin kamera diberikan dan kamera terpilih tersedia.'); 
+            }
+        }
+
+        // ===== CAPTURE FRAME =====
+        async function captureFrame(video) {
+            const canvas = document.getElementById('hiddenCanvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            
+            // Mirror fix for selfie camera
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+        }
+
+        // ===== API HELPER =====
+        async function post(endpoint, blob, fields = {}) {
+            const fd = new FormData();
+            fd.append('file', blob, 'frame.jpg');
+            Object.entries(fields).forEach(([k, v]) => {
+                if (v) fd.append(k, v);
+            });
+            
+            const res = await fetch(`${API}${endpoint}`, { 
+                method: 'POST', 
+                body: fd,
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (!res.ok) { 
+                const err = await res.json().catch(() => ({})); 
+                throw new Error(err.detail || `HTTP ${res.status}`); 
+            }
+            return res.json();
+        }
+
+        async function get(endpoint) {
+            const res = await fetch(`${API}${endpoint}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        }
+
+        // ===== DRAW BOXES ON CANVAS =====
+        async function drawBoxes(boxes, video, canvas) {
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (!boxes?.length) return;
+            
+            ctx.lineWidth = 3;
+            ctx.font = '600 14px Inter, sans-serif';
+            const colors = { 
+                human: '#00ffcc', 
+                helmet: '#ff4444', 
+                vest: '#44aaff', 
+                boots: '#ffcc44',
+                gloves: '#aa44ff'
+            };
+            
+            boxes.forEach(b => {
+                const color = colors[b.label] || '#ffffff';
+                const x1 = b.x1;
+                const y1 = b.y1;
+                const x2 = b.x2;
+                const y2 = b.y2;
+                const boxWidth = x2 - x1;
+                const boxHeight = y2 - y1;
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                
+                // Draw box
+                ctx.strokeRect(x1, y1, boxWidth, boxHeight);
+                
+                // Draw label background & text
+                const label = `${b.label} ${(b.conf * 100).toFixed(0)}%`;
+                const textMetrics = ctx.measureText(label);
+                const labelHeight = 24;
+                const labelY = Math.max(0, y1 - labelHeight);
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(x1, labelY, textMetrics.width + 12, labelHeight);
+                
+                ctx.fillStyle = '#0f172a';
+                ctx.fillText(label, x1 + 6, labelY + 17);
+            });
+        }
+
+        function showAnnotatedFrame(base64Image, imageEl) {
+            if (!base64Image) {
+                imageEl.removeAttribute('src');
+                imageEl.style.display = 'none';
+                return;
+            }
+
+            imageEl.src = `data:image/jpeg;base64,${base64Image}`;
+            imageEl.style.display = 'block';
+        }
+
+        function hideAnnotatedFrame(imageEl) {
+            if (!imageEl) return;
+            imageEl.removeAttribute('src');
+            imageEl.style.display = 'none';
+        }
+
+        function resetStatusBadge(id, label) {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            el.className = 'status-badge';
+            const dot = el.querySelector('.status-badge__dot');
+            const text = el.querySelector('span:last-child');
+
+            if (dot) dot.style.background = '';
+            if (text) text.textContent = label;
+        }
+
+        function resetAttendanceInference() {
+            hideAnnotatedFrame(document.getElementById('attAnnotated'));
+            document.getElementById('attResult')?.classList.remove('show', 'accepted', 'rejected');
+            document.getElementById('attWorkerDetected').style.display = 'none';
+            document.getElementById('attWorkerName').textContent = 'Worker: -';
+            document.getElementById('attRecording').style.display = 'none';
+
+            resetStatusBadge('attHelmStatus', '🪖 Helmet: -');
+            resetStatusBadge('attVestStatus', '🦺 Vest: -');
+            resetStatusBadge('attBootsStatus', '👢 Boots: -');
+
+            ['sideHelm', 'sideVest', 'sideBoots'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.className = 'ppe-item ok';
+            });
+
+            document.getElementById('sideResult').innerHTML = '<p class="text-muted">Silakan scan untuk melihat hasil</p>';
+        }
+
+        function resetMonitoringInference() {
+            hideAnnotatedFrame(document.getElementById('monAnnotated'));
+            document.getElementById('monPersonDetected').style.display = 'none';
+            document.getElementById('monWarning')?.classList.remove('show');
+            document.getElementById('alertBadge').style.display = 'none';
+
+            resetStatusBadge('monHelmBadge', '🪖 Helmet');
+            resetStatusBadge('monVestBadge', '🦺 Vest');
+            resetStatusBadge('monBootsBadge', '👢 Boots');
+
+            ['monHelmStatus', 'monVestStatus', 'monBootsStatus'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.className = 'status-badge status-badge--ok';
+                el.textContent = '✅';
+            });
+        }
+
+        // ===== DASHBOARD STATS =====
+        async function loadDashboardStats() {
+            try {
+                const stats = await get('/dashboard/stats');
+                
+                document.getElementById('statWorkers').textContent = stats.total_workers || '-';
+                document.getElementById('statToday').textContent = stats.attendance_today || '-';
+                document.getElementById('statAccepted').textContent = stats.accepted_today || '-';
+                document.getElementById('statRejected').textContent = stats.rejected_today || '-';
+                
+                // Compliance ring
+                const pct = stats.compliance_rate || 0;
+                document.getElementById('complianceRing').style.setProperty('--pct', `${pct}%`);
+                document.getElementById('complianceValue').textContent = `${pct}%`;
+                
+                // PPE stats
+                document.getElementById('ppeHelmStat').textContent = `🪖 Helm: ${stats.ppe_compliance?.helmet || 0}%`;
+                document.getElementById('ppeVestStat').textContent = `🦺 Rompi: ${stats.ppe_compliance?.vest || 0}%`;
+                document.getElementById('ppeBootsStat').textContent = `👢 Sepatu: ${stats.ppe_compliance?.boots || 0}%`;
+                
+                // Recent activity from API
+                const activityEl = document.getElementById('recentActivity');
+                try {
+                    const historyData = await get('/attendance/history?limit=5');
+                    
+                    if (historyData.records && historyData.records.length > 0) {
+                        activityEl.innerHTML = historyData.records.map(r => {
+                            const time = new Date(r.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                            const statusClass = r.status === 'accepted' ? 'accepted' : 'rejected';
+                            const statusIcon = r.status === 'accepted' ? '✅' : '❌';
+                            return `
+                                <div class="log-item">
+                                    <span class="log-item__name">${r.name}</span>
+                                    <span class="log-item__time">${time}</span>
+                                    <span class="log-item__status ${statusClass}">${statusIcon} ${r.status}</span>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        activityEl.innerHTML = '<div class="text-center text-muted" style="padding:20px">Belum ada data kehadiran hari ini</div>';
+                    }
+                } catch (historyErr) {
+                    // Fallback to empty state if history API fails
+                    activityEl.innerHTML = '<div class="text-center text-muted" style="padding:20px">Tidak dapat memuat aktivitas terbaru</div>';
+                    console.warn('Could not load activity history:', historyErr);
+                }
+            } catch (e) {
+                console.warn('Dashboard stats error:', e);
+            }
+        }
+
+        async function loadLatestAttendance() {
+            const lastAttEl = document.getElementById('lastAttendance');
+            if (!lastAttEl) return;
+
+            try {
+                const data = await get('/attendance/history?limit=5');
+
+                if (!data.records?.length) {
+                    lastAttEl.innerHTML = '<div class="text-center text-muted" style="padding:12px">Belum ada absensi</div>';
+                    return;
+                }
+
+                lastAttEl.innerHTML = data.records.map(r => {
+                    const time = new Date(r.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    return `
+                        <div class="log-item">
+                            <span class="log-item__name">${r.name}</span>
+                            <span class="log-item__time">${time}</span>
+                            <span class="log-item__status ${r.status}">${r.status}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.warn('Latest attendance error:', e);
+                lastAttEl.innerHTML = '<div class="text-center text-muted" style="padding:12px">Tidak dapat memuat absensi terakhir</div>';
+            }
+        }
+
+        async function refreshAppViews(sourceButton = null, options = {}) {
+            const shouldResetInference = options.resetInference !== false;
+            const refreshBtn = document.getElementById('btnRefreshView');
+            const activePage = document.querySelector('.page.active')?.id;
+            const activeFilter = document.querySelector('[data-filter].btn-primary')?.dataset.filter || 'all';
+            const dailyDate = document.getElementById('dailyAttendanceDate')?.value;
+            const buttons = [...new Set([refreshBtn, sourceButton].filter(Boolean))];
+            const runRefreshTask = async (taskName, task) => {
+                try {
+                    await task();
+                } catch (error) {
+                    console.warn(`Refresh ${taskName} gagal:`, error);
+                }
+            };
+
+            buttons.forEach(button => {
+                button.disabled = true;
+                button.dataset.originalText = button.textContent;
+                button.textContent = 'Refreshing...';
+            });
+
+            try {
+                if (shouldResetInference) {
+                    resetAttendanceInference();
+                    resetMonitoringInference();
+                }
+
+                await runRefreshTask('dashboard', loadDashboardStats);
+                await runRefreshTask('absensi terakhir', loadLatestAttendance);
+                await runRefreshTask('pekerja', loadWorkers);
+                await runRefreshTask('riwayat', () => loadHistory(activeFilter));
+
+                if (dailyDate) {
+                    await runRefreshTask('status harian', loadDailyAttendance);
+                }
+
+                if (activePage === 'reports') {
+                    await runRefreshTask('laporan', loadReport);
+                }
+            } finally {
+                buttons.forEach(button => {
+                    button.disabled = false;
+                    button.textContent = button.dataset.originalText || 'Refresh Data';
+                    delete button.dataset.originalText;
+                });
+            }
+        }
+
+        document.getElementById('btnRefreshView')?.addEventListener('click', (event) => {
+            refreshAppViews(event.currentTarget);
+        });
+
+        document.addEventListener('click', (event) => {
+            const refreshButton = event.target.closest('[data-action="refresh-view"]');
+            if (!refreshButton) return;
+            refreshAppViews(refreshButton);
+        });
+
+        function showAttendanceRefreshButton() {
+            const refreshBtn = document.getElementById('btnRefreshView');
+            if (refreshBtn) refreshBtn.style.display = 'inline-flex';
+        }
+
+        // ===== WORKERS LIST =====
+        async function loadWorkers() {
+            try {
+                const data = await get('/workers');
+                const tbody = document.getElementById('workersTableBody');
+                
+                if (!data.workers?.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:24px">👤 Belum ada pekerja terdaftar</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.workers.map((w, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td class="fw-600">${w.name}</td>
+                        <td>${w.department || '-'}</td>
+                        <td>${w.position || '-'}</td>
+                        <td>${w.email || '-'}</td>
+                        <td>${w.phone || '-'}</td>
+                        <td><span class="status-badge status-badge--ok" style="padding:4px 10px;font-size:0.75rem">✅ Active</span></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Load workers error:', e);
+                document.getElementById('workersTableBody').innerHTML = 
+                    '<tr><td colspan="7" class="text-center text-danger" style="padding:24px">❌ Gagal memuat data</td></tr>';
+            }
+        }
+
+        // ===== ATTENDANCE HISTORY =====
+        async function loadHistory(filter = 'all') {
+            try {
+                const statusParam = filter && filter !== 'all' ? `&status=${filter}` : '';
+                const data = await get(`/attendance/history?limit=50${statusParam}`);
+                const tbody = document.getElementById('historyTableBody');
+                
+                if (!data.records?.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:24px">📋 Belum ada data kehadiran</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.records.map((r, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td class="fw-600">${r.name}</td>
+                        <td>${new Date(r.timestamp).toLocaleString('id-ID')}</td>
+                        <td><span class="log-item__status ${r.status}">${r.status}</span></td>
+                        <td>${r.helmet ? '✅' : '❌'}</td>
+                        <td>${r.vest ? '✅' : '❌'}</td>
+                        <td>${r.boots ? '✅' : '❌'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Load history error:', e);
+            }
+        }
+
+        // History filter buttons
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('[data-filter]').forEach(b => {
+                    b.classList.remove('btn-primary');
+                    b.classList.add('btn-outline');
+                });
+                e.target.classList.remove('btn-outline');
+                e.target.classList.add('btn-primary');
+                loadHistory(e.target.dataset.filter);
+            });
+        });
+
+        // ===== DAILY ATTENDANCE =====
+        async function loadDailyAttendance() {
+            const dateInput = document.getElementById('dailyAttendanceDate');
+            const selectedDate = dateInput.value;
+            
+            if (!selectedDate) {
+                alert('Pilih tanggal terlebih dahulu');
+                return;
+            }
+            
+            const loading = document.getElementById('dailyAttendanceLoading');
+            const tbody = document.getElementById('dailyAttendanceBody');
+            const title = document.getElementById('dailyAttendanceTitle');
+            
+            loading.classList.add('show');
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:24px">🔄 Loading data...</td></tr>';
+            
+            try {
+                const data = await get(`/attendance/daily-status?date=${selectedDate}`);
+                
+                // Update title
+                const dateObj = new Date(selectedDate + 'T00:00:00');
+                const dateStr = dateObj.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                title.textContent = `Status Kehadiran - ${dateStr}`;
+                
+                if (!data.workers?.length) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:24px">Belum ada data pekerja</td></tr>';
+                    return;
+                }
+                
+                // Calculate summary
+                const total = data.workers.length;
+                const present = data.workers.filter(w => w.attendance_status === 'accepted').length;
+                const incomplete = data.workers.filter(w => w.attendance_status === 'rejected').length;
+                const absent = data.workers.filter(w => w.attendance_status === 'absent').length;
+                
+                document.getElementById('dailySummaryTotal').textContent = total;
+                document.getElementById('dailySummaryPresent').textContent = present;
+                document.getElementById('dailySummaryAbsent').textContent = absent;
+                document.getElementById('dailySummaryIncomplete').textContent = incomplete;
+                
+                // Build table
+                tbody.innerHTML = data.workers.map((w, i) => {
+                    let statusBadge = '';
+                    let statusColor = '';
+                    
+                    if (w.attendance_status === 'accepted') {
+                        statusBadge = '✅ Hadir (Lengkap)';
+                        statusColor = 'accepted';
+                    } else if (w.attendance_status === 'rejected') {
+                        statusBadge = '⚠️ Hadir (Tidak Lengkap)';
+                        statusColor = 'rejected';
+                    } else {
+                        statusBadge = '❌ Tidak Hadir';
+                        statusColor = 'rejected';
+                    }
+                    
+                    const time = w.timestamp ? new Date(w.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
+                    
+                    return `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td class="fw-600">${w.name}</td>
+                            <td>${w.department || '-'}</td>
+                            <td>${w.position || '-'}</td>
+                            <td><span class="log-item__status ${statusColor}">${statusBadge}</span></td>
+                            <td>${time}</td>
+                            <td>${w.helmet !== null ? (w.helmet ? '✅' : '❌') : '-'}</td>
+                            <td>${w.vest !== null ? (w.vest ? '✅' : '❌') : '-'}</td>
+                            <td>${w.boots !== null ? (w.boots ? '✅' : '❌') : '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (e) {
+                console.error('Load daily attendance error:', e);
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding:24px">❌ Error: ${e.message}</td></tr>`;
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+        
+        // Set default date to today
+        document.addEventListener('DOMContentLoaded', () => {
+            const dateInput = document.getElementById('dailyAttendanceDate');
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+        });
+        
+        // Load button
+        document.getElementById('btnLoadDailyAttendance').addEventListener('click', loadDailyAttendance);
+        
+        // Auto load when date changes
+        document.getElementById('dailyAttendanceDate').addEventListener('change', loadDailyAttendance);
+
+        // ===== ATTENDANCE SCAN =====
+        document.getElementById('btnAttCheck').addEventListener('click', async () => {
+            const video = document.getElementById('attVideo');
+            const annotatedImage = document.getElementById('attAnnotated');
+            const btn = document.getElementById('btnAttCheck');
+            const load = document.getElementById('attLoading');
+            const resBox = document.getElementById('attResult');
+            const recording = document.getElementById('attRecording');
+            
+            btn.disabled = true;
+            load.classList.add('show');
+            resBox.classList.remove('show');
+            recording.style.display = 'flex';
+            hideAnnotatedFrame(annotatedImage);
+            
+            // Update overlay badges to loading state
+            ['attHelmStatus', 'attVestStatus', 'attBootsStatus'].forEach(id => {
+                const el = document.getElementById(id);
+                el.querySelector('.status-badge__dot').style.background = 'var(--warning)';
+                el.querySelector('span:last-child').textContent = el.querySelector('span:last-child').textContent.replace(/: .+$/, ': ...');
+            });
+            
+            try {
+                const blob = await captureFrame(video);
+                const d = await post('/attendance/check', blob);
+
+                showAnnotatedFrame(d.annotated_frame, annotatedImage);
+                
+                // Update overlay badges
+                document.getElementById('attWorkerDetected').style.display = 'flex';
+                document.getElementById('attWorkerName').textContent = `Worker: ${d.worker?.name || d.worker}`;
+                
+                const updateBadge = (id, status, label) => {
+                    const el = document.getElementById(id);
+                    const dot = el.querySelector('.status-badge__dot');
+                    const text = el.querySelector('span:last-child');
+                    dot.style.background = status ? 'var(--success)' : 'var(--danger)';
+                    el.className = `status-badge status-badge--${status ? 'ok' : 'danger'}`;
+                    text.textContent = `${label}: ${status ? '✅' : '❌'}`;
+                };
+                
+                updateBadge('attHelmStatus', d.helmet, '🪖 Helmet');
+                updateBadge('attVestStatus', d.vest, '🦺 Vest');
+                updateBadge('attBootsStatus', d.boots, '👢 Boots');
+                
+                // Update side panel
+                ['sideHelm', 'sideVest', 'sideBoots'].forEach((id, idx) => {
+                    const el = document.getElementById(id);
+                    const status = [d.helmet, d.vest, d.boots][idx];
+                    el.className = `ppe-item ${status ? 'ok' : 'missing'}`;
+                });
+                
+                // Result display
+                const ppeHtml = `
+                    <div class="ppe-status-grid">
+                        <div class="ppe-item ${d.helmet ? 'ok' : 'missing'}">🪖 Helmet ${d.helmet ? '✅' : '❌'}</div>
+                        <div class="ppe-item ${d.vest ? 'ok' : 'missing'}">🦺 Vest ${d.vest ? '✅' : '❌'}</div>
+                        <div class="ppe-item ${d.boots ? 'ok' : 'missing'}">👢 Boots ${d.boots ? '✅' : '❌'}</div>
+                    </div>
+                `;
+                
+                resBox.className = `result-box ${d.attendance} show`;
+                resBox.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                        <strong style="font-size:1.1rem">Worker: ${d.worker?.name || d.worker}</strong>
+                        <span class="status-badge status-badge--${d.attendance === 'accepted' ? 'ok' : 'danger'}" 
+                              style="padding:6px 14px;font-size:0.85rem">
+                            ${d.attendance.toUpperCase()}
+                        </span>
+                    </div>
+                    ${ppeHtml}
+                    ${d.message ? `<p style="margin-top:12px;padding:10px;background:rgba(220,38,38,0.1);border-radius:8px;color:var(--danger-dark);font-weight:500">📢 ${d.message}</p>` : ''}
+                `;
+                
+                // Side result
+                document.getElementById('sideResult').innerHTML = `
+                    <div style="font-size:1.2rem;font-weight:600;margin-bottom:8px" 
+                         class="${d.attendance === 'accepted' ? 'text-success' : 'text-danger'}">
+                        ${d.attendance === 'accepted' ? '✅ Absensi Diterima' : '❌ Absensi Ditolak'}
+                    </div>
+                    <p class="text-muted" style="font-size:0.9rem">${d.message || 'APD lengkap, data tersimpan'}</p>
+                `;
+                
+                // Update last attendance
+                const lastAttEl = document.getElementById('lastAttendance');
+                const now = new Date().toLocaleTimeString('id-ID');
+                lastAttEl.innerHTML = `
+                    <div class="log-item">
+                        <span class="log-item__name">${d.worker?.name || d.worker}</span>
+                        <span class="log-item__time">${now}</span>
+                        <span class="log-item__status ${d.attendance}">${d.attendance}</span>
+                    </div>
+                ` + lastAttEl.innerHTML;
+
+                showAttendanceRefreshButton();
+                refreshAppViews(null, { resetInference: false });
+                
+            } catch (e) {
+                resBox.className = 'result-box rejected show';
+                
+                // Check if it's double attendance error
+                const isDoubleAttendance = e.message.includes('absensi diterima hari ini') || e.message.includes('sudah absen hari ini');
+                const errorIcon = isDoubleAttendance ? '⛔' : '❌';
+                const errorTitle = isDoubleAttendance ? 'Sudah Absen' : 'Error';
+                
+                resBox.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                        <span style="font-size:1.5rem">${errorIcon}</span>
+                        <strong style="font-size:1.1rem">${errorTitle}</strong>
+                    </div>
+                    <p style="margin:0;padding:12px;background:rgba(220,38,38,0.1);border-radius:8px;color:var(--danger-dark);font-weight:500">
+                        ${e.message}
+                    </p>
+                `;
+                document.getElementById('sideResult').innerHTML = 
+                    `<p class="text-danger"><strong>${errorIcon} ${errorTitle}</strong><br>${e.message}</p>`;
+                
+                // Hide overlays
+                document.getElementById('attWorkerDetected').style.display = 'none';
+                hideAnnotatedFrame(annotatedImage);
+                showAttendanceRefreshButton();
+            } finally {
+                load.classList.remove('show');
+                btn.disabled = false;
+                recording.style.display = 'none';
+            }
+        });
+
+        // ===== REGISTRATION =====
+        function setRegistrationImage(blob, sourceLabel) {
+            regBlob = blob;
+
+            if (regPreviewUrl) {
+                URL.revokeObjectURL(regPreviewUrl);
+            }
+
+            regPreviewUrl = URL.createObjectURL(blob);
+            document.getElementById('regPreviewImg').src = regPreviewUrl;
+            document.getElementById('regPreviewSource').textContent = sourceLabel;
+            document.getElementById('regPreview').classList.add('show');
+            document.getElementById('regFaceDetected').style.display = 'flex';
+            document.getElementById('btnRegSubmit').disabled = false;
+        }
+
+        function resetRegistrationImage() {
+            regBlob = null;
+
+            if (regPreviewUrl) {
+                URL.revokeObjectURL(regPreviewUrl);
+                regPreviewUrl = null;
+            }
+
+            document.getElementById('regPreviewImg').removeAttribute('src');
+            document.getElementById('regPreviewSource').textContent = 'Belum ada gambar';
+            document.getElementById('regPreview').classList.remove('show');
+            document.getElementById('regFaceDetected').style.display = 'none';
+            document.getElementById('regUpload').value = '';
+            document.getElementById('btnRegCapture').innerHTML = '📸 Capture Wajah';
+            document.getElementById('btnRegCapture').classList.remove('btn-success');
+        }
+        document.getElementById('btnRegCapture').addEventListener('click', async () => {
+            const video = document.getElementById('regVideo');
+            const capturedBlob = await captureFrame(video);
+            setRegistrationImage(capturedBlob, 'Dari kamera');
+            document.getElementById('btnRegCapture').innerHTML = '✅ Foto Diambil';
+            document.getElementById('btnRegCapture').classList.add('btn-success');
+        });
+
+        document.getElementById('regUpload').addEventListener('change', (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                alert('File harus berupa gambar.');
+                event.target.value = '';
+                return;
+            }
+
+            setRegistrationImage(file, file.name);
+            document.getElementById('btnRegCapture').innerHTML = '📸 Capture Wajah';
+            document.getElementById('btnRegCapture').classList.remove('btn-success');
+        });
+
+        document.getElementById('btnRegSubmit').addEventListener('click', async () => {
+            const name = document.getElementById('workerName').value.trim();
+            const dept = document.getElementById('workerDept').value.trim();
+            const position = document.getElementById('workerPosition').value.trim();
+            const email = document.getElementById('workerEmail').value.trim();
+            const phone = document.getElementById('workerPhone').value.trim();
+            
+            if (!name) return alert('❌ Nama pekerja harus diisi!');
+            if (!regBlob) return alert('Ambil foto wajah atau upload gambar dulu!');
+            
+            const btn = document.getElementById('btnRegSubmit');
+            const load = document.getElementById('regLoading');
+            const resBox = document.getElementById('regResult');
+            
+            btn.disabled = true;
+            load.classList.add('show');
+            resBox.classList.remove('show');
+            
+            try {
+                const data = await post('/register-face', regBlob, { 
+                    worker_name: name,
+                    department: dept,
+                    position: position,
+                    email: email,
+                    phone: phone
+                });
+                
+                resBox.className = 'result-box accepted show';
+                resBox.innerHTML = `
+                    <strong>✅ ${data.message}</strong><br><br>
+                    <div style="background: rgba(255,255,255,0.7); padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 0.9rem">
+                        ${data.worker?.department ? `<div>🏢 Dept: <strong>${data.worker.department}</strong></div>` : ''}
+                        ${data.worker?.position ? `<div>💼 Posisi: <strong>${data.worker.position}</strong></div>` : ''}
+                        ${data.worker?.email ? `<div>📧 Email: <strong>${data.worker.email}</strong></div>` : ''}
+                        ${data.worker?.phone ? `<div>📱 Phone: <strong>${data.worker.phone}</strong></div>` : ''}
+                    </div>
+                `;
+                
+                // Reset form
+                ['workerName','workerDept','workerPosition','workerEmail','workerPhone'].forEach(id => {
+                    document.getElementById(id).value = '';
+                });
+                btn.disabled = true;
+                resetRegistrationImage();
+                document.getElementById('btnRegCapture').innerHTML = '📸 Capture Wajah';
+                document.getElementById('btnRegCapture').classList.remove('btn-success');
+                document.getElementById('regFaceDetected').style.display = 'none';
+                
+                refreshAppViews(null, { resetInference: false });
+                
+            } catch (e) {
+                resBox.className = 'result-box rejected show';
+                resBox.innerHTML = `❌ <strong>Error:</strong> ${e.message}`;
+            } finally {
+                load.classList.remove('show');
+                btn.disabled = !regBlob;
+            }
+        });
+
+        // ===== MONITORING =====
+        let lastWarnedTime = 0; // Track last warning time to avoid continuous beeps
+        
+        function playBeepSound() {
+            try {
+                // Create audio context for beep sound
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Play 3 beeps in sequence
+                for (let i = 0; i < 3; i++) {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    // Beep parameters
+                    oscillator.frequency.value = 800; // 800 Hz
+                    oscillator.type = 'sine';
+                    
+                    // Timing: each beep is 0.3s, with 0.1s gap between them
+                    const startTime = audioContext.currentTime + (i * 0.4); // 0.3s beep + 0.1s gap
+                    
+                    // Set volume
+                    gainNode.gain.setValueAtTime(0.3, startTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+                    
+                    // Play for 0.3 seconds
+                    oscillator.start(startTime);
+                    oscillator.stop(startTime + 0.3);
+                }
+            } catch (e) {
+                console.warn('Could not play beep sound:', e);
+            }
+        }
+        
+        async function monitorLoop() {
+            if (!monRunning) return;
+            
+            const video = document.getElementById('monVideo');
+            const annotatedImage = document.getElementById('monAnnotated');
+            
+            monAbort?.abort();
+            monAbort = new AbortController();
+            
+            try {
+                const blob = await captureFrame(video);
+                const fd = new FormData();
+                fd.append('file', blob, 'frame.jpg');
+                
+                const res = await fetch(`${API}/monitor/frame`, { 
+                    method: 'POST', 
+                    body: fd, 
+                    signal: monAbort.signal 
+                });
+                
+                if (!res.ok) throw new Error('Server error');
+                const d = await res.json();
+                
+                // Show the exact annotated frame returned by inference
+                showAnnotatedFrame(d.annotated_frame, annotatedImage);
+                
+                // Update status badges
+                const updateMonBadge = (id, status) => {
+                    const el = document.getElementById(id);
+                    const dot = el.querySelector('.status-badge__dot');
+                    dot.style.background = status ? 'var(--success)' : 'var(--danger)';
+                    el.className = `status-badge status-badge--${status ? 'ok' : 'danger'}`;
+                };
+                
+                updateMonBadge('monHelmBadge', d.ppe_status?.helmet);
+                updateMonBadge('monVestBadge', d.ppe_status?.vest);
+                updateMonBadge('monBootsBadge', d.ppe_status?.boots);
+                
+                document.getElementById('monHelmStatus').textContent = d.ppe_status?.helmet ? '✅' : '❌';
+                document.getElementById('monVestStatus').textContent = d.ppe_status?.vest ? '✅' : '❌';
+                document.getElementById('monBootsStatus').textContent = d.ppe_status?.boots ? '✅' : '❌';
+                
+                // Person detected indicator
+                const personEl = document.getElementById('monPersonDetected');
+                if (d.person_detected) {
+                    personEl.style.display = 'flex';
+                } else {
+                    personEl.style.display = 'none';
+                }
+                
+                // Warning panel - Only show if person detected AND warning exists
+                const warningEl = document.getElementById('monWarning');
+                const warningText = document.getElementById('monWarningText');
+                
+                if (d.person_detected && d.warning) {
+                    warningEl.classList.add('show');
+                    warningText.textContent = d.warning;
+                    
+                    // Play beep sound (only once per warning, not continuously)
+                    const now = Date.now();
+                    if (now - lastWarnedTime > 2000) { // Beep at most every 2 seconds
+                        playBeepSound();
+                        lastWarnedTime = now;
+                    }
+                    
+                    // Add to log
+                    const logEl = document.getElementById('monLog');
+                    const time = new Date().toLocaleTimeString('id-ID');
+                    logEl.innerHTML = `
+                        <div class="log-item">
+                            <span class="log-item__name" style="color:var(--danger)">⚠️ ${d.warning}</span>
+                            <span class="log-item__time">${time}</span>
+                        </div>
+                    ` + logEl.innerHTML;
+                    
+                    // Show alert badge
+                    document.getElementById('alertBadge').style.display = 'inline';
+                } else {
+                    warningEl.classList.remove('show');
+                    // Reset warning time when no warning
+                    if (!d.warning) {
+                        lastWarnedTime = 0;
+                    }
+                }
+                
+                // Connection status
+                document.getElementById('monConnStatus').textContent = `Connected (${new Date().toLocaleTimeString('id-ID')})`;
+                document.getElementById('monConnStatus').className = 'text-success';
+                
+            } catch (e) { 
+                if (e.name !== 'AbortError') {
+                    console.warn('Monitor error:', e);
+                    document.getElementById('monConnStatus').textContent = 'Error';
+                    document.getElementById('monConnStatus').className = 'text-danger';
+                }
+            } finally { 
+                if (monRunning) setTimeout(monitorLoop, MONITOR_INTERVAL_MS); 
+            }
+        }
+
+        document.getElementById('btnMonStart').addEventListener('click', () => {
+            monRunning = true;
+            document.getElementById('btnMonStart').disabled = true;
+            document.getElementById('btnMonStop').disabled = false;
+            document.getElementById('monLiveIndicator').style.display = 'flex';
+            document.getElementById('monStatus')?.classList.add('active');
+            monitorLoop();
+        });
+
+        document.getElementById('btnMonStop').addEventListener('click', () => {
+            monRunning = false;
+            monAbort?.abort();
+            document.getElementById('btnMonStart').disabled = false;
+            document.getElementById('btnMonStop').disabled = true;
+            document.getElementById('monLiveIndicator').style.display = 'none';
+            hideAnnotatedFrame(document.getElementById('monAnnotated'));
+            document.getElementById('monWarning').classList.remove('show');
+            document.getElementById('alertBadge').style.display = 'none';
+        });
+
+        // ===== REPORTS =====
+        async function loadReport() {
+            const btn = document.getElementById('btnGenerateReport');
+            const load = document.getElementById('reportLoading');
+            
+            btn.disabled = true;
+            load.classList.add('show');
+            
+            try {
+                const startDate = document.getElementById('reportStartDate')?.value;
+                const endDate = document.getElementById('reportEndDate')?.value;
+                const dateParams = startDate && endDate
+                    ? `?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`
+                    : '';
+                const data = await get(`/reports/compliance${dateParams}`);
+                
+                // Summary stats
+                const total = data.report?.reduce((sum, r) => sum + (r.total || 0), 0) || 0;
+                const accepted = data.report?.reduce((sum, r) => sum + (r.accepted || 0), 0) || 0;
+                const rejected = data.report?.reduce((sum, r) => sum + (r.rejected || 0), 0) || 0;
+                const compliance = total > 0 ? Math.round((accepted / total) * 100) : 0;
+                
+                document.getElementById('rptTotal').textContent = total;
+                document.getElementById('rptAccepted').textContent = accepted;
+                document.getElementById('rptRejected').textContent = rejected;
+                document.getElementById('rptCompliance').textContent = `${compliance}%`;
+                
+                // PPE compliance
+                const avgHelm = data.report?.reduce((sum, r) => sum + (r.helmet_pct || 0), 0) / (data.report?.length || 1);
+                const avgVest = data.report?.reduce((sum, r) => sum + (r.vest_pct || 0), 0) / (data.report?.length || 1);
+                const avgBoots = data.report?.reduce((sum, r) => sum + (r.boots_pct || 0), 0) / (data.report?.length || 1);
+                
+                document.getElementById('rptHelm').textContent = `${Math.round(avgHelm || 0)}%`;
+                document.getElementById('rptVest').textContent = `${Math.round(avgVest || 0)}%`;
+                document.getElementById('rptBoots').textContent = `${Math.round(avgBoots || 0)}%`;
+                
+                // Table
+                const tbody = document.getElementById('reportTableBody');
+                if (data.report?.length) {
+                    tbody.innerHTML = data.report.map(r => `
+                        <tr>
+                            <td class="fw-600">${r.name}</td>
+                            <td>${r.accepted || 0}</td>
+                            <td>${r.rejected || 0}</td>
+                            <td>${r.total || 0}</td>
+                            <td>${Math.round(r.helmet_pct || 0)}%</td>
+                            <td>${Math.round(r.vest_pct || 0)}%</td>
+                            <td>${Math.round(r.boots_pct || 0)}%</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:24px">📊 Tidak ada data untuk periode ini</td></tr>';
+                }
+                
+            } catch (e) {
+                console.error('Report error:', e);
+                alert('❌ Gagal generate laporan: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                load.classList.remove('show');
+            }
+        }
+
+        document.getElementById('btnGenerateReport').addEventListener('click', loadReport);
+
+        // ===== SEARCH HISTORY =====
+        document.getElementById('historySearch')?.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#historyTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        });
+
+        // ===== INIT =====
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load initial data
+            loadDashboardStats();
+            loadLatestAttendance();
+            
+            // Auto-init camera for first visible camera page
+            initCamera('attendance');
+            
+            console.log('🛡️ K3Vision Dashboard v2.0 loaded');
+        });
+
+        // ===== CLEANUP =====
+        window.addEventListener('beforeunload', () => {
+            Object.values(streams).forEach(stream => {
+                stream.getTracks().forEach(track => track.stop());
+            });
+            monAbort?.abort();
+        });
+    </script>
+</body>
+</html>

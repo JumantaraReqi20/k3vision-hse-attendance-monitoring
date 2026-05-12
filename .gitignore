@@ -1,0 +1,49 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+venv311/
+.venv/
+env/
+ENV/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local databases and encryption keys
+*.db
+*.sqlite
+*.sqlite3
+*.key
+
+# Logs and local runtime files
+*.log
+*.pid
+
+# Build, test, and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Model training and experiment artifacts
+runs/
+
+# Local helper folders
+.sixth/
