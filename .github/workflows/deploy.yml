@@ -1,0 +1,66 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          PROJECT_PATH: ${{ vars.PROJECT_PATH }}
+          DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          envs: PROJECT_PATH,DEPLOY_BRANCH,SERVICE_NAME
+          script: |
+            set -e
+
+            if [ -z "$PROJECT_PATH" ]; then
+              echo "PROJECT_PATH is not set"
+              exit 1
+            fi
+
+            if [ -z "$DEPLOY_BRANCH" ]; then
+              DEPLOY_BRANCH=main
+            fi
+
+            if [ -z "$SERVICE_NAME" ]; then
+              SERVICE_NAME=k3vision
+            fi
+
+            cd "$PROJECT_PATH"
+            git fetch origin
+            git checkout "$DEPLOY_BRANCH"
+            git pull origin "$DEPLOY_BRANCH"
+
+            if [ -x "$PROJECT_PATH/venv/bin/pip" ]; then
+              "$PROJECT_PATH/venv/bin/pip" install -r requirements.txt
+            else
+              echo "Virtual environment not found at $PROJECT_PATH/venv"
+              exit 1
+            fi
+
+            systemctl restart "$SERVICE_NAME"
+            systemctl status "$SERVICE_NAME" --no-pager
