@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Form, UploadFile, File, HTTPException
 import datetime
+import logging
 from database import get_worker, record_attendance, check_already_accepted_today
 from database import get_all_workers, get_all_attendance, get_attendance_report, get_attendance_count, get_ppe_compliance_stats
 from database import get_daily_attendance_status as fetch_daily_attendance_status
@@ -8,6 +9,7 @@ from ppe_detector import ppe_det
 from telegram_notifier import telegram_notifier
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/telegram/status")
@@ -90,23 +92,31 @@ def identify_worker(file: UploadFile = File(...)):
 @router.post("/attendance/check")
 def check_attendance(file: UploadFile = File(...)):
     image_bytes = file.file.read()
+    logger.info("[Attendance] /attendance/check received %s bytes", len(image_bytes))
     
     # 1. Cek apakah terdaftar
+    logger.info("[Attendance] Starting face identification")
     worker_name = face_rec.identify(image_bytes)
     if not worker_name:
+        logger.info("[Attendance] Face identification failed")
         raise HTTPException(status_code=401, detail="Worker not registered. Please register face first.")
         
+    logger.info("[Attendance] Face identified as %s", worker_name)
     worker = get_worker(worker_name)
     if not worker:
+        logger.error("[Attendance] Worker DB lookup failed for %s", worker_name)
         raise HTTPException(500, "Worker DB lookup failed")
     
     # 2. Kalau sudah pernah diterima hari ini, jangan terima absensi ulang.
     # Record rejected tetap boleh mencoba lagi sampai APD lengkap.
     if check_already_accepted_today(worker["id"]):
+        logger.info("[Attendance] Duplicate accepted attendance blocked for %s", worker_name)
         raise HTTPException(status_code=403, detail=f"{worker_name} sudah memiliki absensi diterima hari ini.")
 
     # 3. Deteksi APD
+    logger.info("[Attendance] Starting PPE detection for %s", worker_name)
     ppe_status = ppe_det.predict(image_bytes)
+    logger.info("[Attendance] PPE detection finished for %s", worker_name)
 
     # 4. Logic Acceptance/Rejection
     is_complete = ppe_status["helmet"] and ppe_status["vest"] and ppe_status["boots"]
@@ -128,6 +138,7 @@ def check_attendance(file: UploadFile = File(...)):
             ppe_status=ppe_status,
             timestamp=timestamp,
         )
+        logger.info("[Attendance] Telegram rejection alert sent=%s for %s", telegram_sent, worker_name)
 
     response = {
         "worker": worker_name,
@@ -143,6 +154,15 @@ def check_attendance(file: UploadFile = File(...)):
     }
     if not is_complete:
         response["message"] = "absensi ditolak, APD belum lengkap"
+
+    logger.info(
+        "[Attendance] Completed for %s status=%s helmet=%s vest=%s boots=%s",
+        worker_name,
+        attendance_status,
+        ppe_status["helmet"],
+        ppe_status["vest"],
+        ppe_status["boots"],
+    )
         
     return response
 

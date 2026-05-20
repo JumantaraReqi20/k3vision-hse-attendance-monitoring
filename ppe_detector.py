@@ -1,14 +1,20 @@
 import base64
+import logging
 import os
+import threading
 
 import cv2
 import numpy as np
 from ultralytics import YOLO
 
+cv2.setNumThreads(1)
+logger = logging.getLogger(__name__)
+
 
 class PPEDetector:
     def __init__(self):
         self.required_ppe = ("helmet", "vest", "boots")
+        self.max_image_dim = 1280
         self.class_thresholds = {
             "human": 0.55,
             "helmet": 0.55,
@@ -32,20 +38,21 @@ class PPEDetector:
         }
         self.model = None
         self.class_names = {}
+        self._predict_lock = threading.Lock()
         self.load_model()
 
     def load_model(self):
         model_path = "model/best.pt"
         if os.path.exists(model_path):
-            print(f"[PPE] Loading local model: {model_path}")
+            logger.info("[PPE] Loading local model: %s", model_path)
             self.model = YOLO(model_path)
             self.class_names = {
                 int(idx): str(name).lower()
                 for idx, name in self.model.names.items()
             }
-            print(f"[PPE] Model loaded successfully. Classes: {self.class_names}")
+            logger.info("[PPE] Model loaded successfully. Classes: %s", self.class_names)
         else:
-            print(f"[PPE] Model not found: {model_path}. Running in placeholder mode.")
+            logger.warning("[PPE] Model not found: %s. Running in placeholder mode.", model_path)
 
     def _empty_result(self):
         return {
@@ -113,16 +120,42 @@ class PPEDetector:
             )
         return annotated
 
+    def _resize_for_inference(self, img):
+        if img is None:
+            return None
+
+        height, width = img.shape[:2]
+        max_dim = max(height, width)
+        if max_dim <= self.max_image_dim:
+            return img
+
+        scale = self.max_image_dim / max_dim
+        resized = cv2.resize(
+            img,
+            (int(width * scale), int(height * scale)),
+            interpolation=cv2.INTER_AREA,
+        )
+        logger.info(
+            "[PPE] Resized frame from %sx%s to %sx%s before inference",
+            width,
+            height,
+            resized.shape[1],
+            resized.shape[0],
+        )
+        return resized
+
     def predict(self, image_bytes: bytes) -> dict:
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None or self.model is None:
             return self._empty_result()
 
+        img = self._resize_for_inference(img)
         height, width = img.shape[:2]
         image_area = width * height
         min_conf = min(self.class_thresholds.values())
-        results = self.model(img, verbose=False, conf=min_conf)
+        with self._predict_lock:
+            results = self.model(img, verbose=False, conf=min_conf)
 
         raw_boxes = []
         for result in results:
@@ -171,13 +204,13 @@ class PPEDetector:
             "annotated_base64": base64.b64encode(buffer).decode("utf-8"),
         }
 
-        print(
-            "[PPE] "
-            f"human={status['person_detected']} "
-            f"helmet={status['helmet']} "
-            f"vest={status['vest']} "
-            f"boots={status['boots']} "
-            f"boxes={[(b['label'], round(b['conf'], 2)) for b in final_boxes]}"
+        logger.info(
+            "[PPE] human=%s helmet=%s vest=%s boots=%s boxes=%s",
+            status["person_detected"],
+            status["helmet"],
+            status["vest"],
+            status["boots"],
+            [(b["label"], round(b["conf"], 2)) for b in final_boxes],
         )
         return status
 
