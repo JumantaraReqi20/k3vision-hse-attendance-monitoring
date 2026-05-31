@@ -189,33 +189,6 @@ def check_attendance(
         "timestamp": timestamp,
         "telegram_notified": telegram_sent,
     }
-        logger.info("[Attendance] Telegram rejection alert sent=%s for %s", telegram_sent, worker_name)
-
-    response = {
-        "worker": worker_name,
-        "helmet": ppe_status["helmet"],
-        "vest": ppe_status["vest"],
-        "boots": ppe_status["boots"],
-        "attendance": attendance_status,
-        "person_detected": ppe_status["person_detected"],
-        "boxes": ppe_status["boxes"],
-        "annotated_frame": ppe_status["annotated_base64"],
-        "message": "absensi ditolak, APD belum lengkap" if not is_complete else None,
-        "telegram_alert_sent": telegram_sent if not is_complete else False,
-    }
-    if not is_complete:
-        response["message"] = "absensi ditolak, APD belum lengkap"
-
-    logger.info(
-        "[Attendance] Completed for %s status=%s helmet=%s vest=%s boots=%s",
-        worker_name,
-        attendance_status,
-        ppe_status["helmet"],
-        ppe_status["vest"],
-        ppe_status["boots"],
-    )
-        
-    return response
 
 @router.get("/workers")
 def list_workers():
