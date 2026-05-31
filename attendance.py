@@ -159,6 +159,7 @@ def check_attendance(
             worker_name=worker_name,
             ppe_status=ppe_status,
             timestamp=timestamp,
+            photo_bytes=image_bytes,
         )
     
     logger.info(

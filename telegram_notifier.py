@@ -281,19 +281,26 @@ class TelegramNotifier:
     def send_alert(
         self,
         caption: str,
+        photo_bytes: bytes | None = None,
         annotated_base64: str | None = None,
         blur_faces: bool = False,
     ) -> bool:
+        if photo_bytes:
+            if blur_faces:
+                photo_bytes = self._blur_faces(photo_bytes)
+            if self.send_photo(photo_bytes, caption):
+                return True
+
         if annotated_base64:
             try:
-                photo_bytes = base64.b64decode(annotated_base64)
+                decoded_photo_bytes = base64.b64decode(annotated_base64)
             except (ValueError, TypeError):
-                photo_bytes = b""
+                decoded_photo_bytes = b""
 
-            if blur_faces and photo_bytes:
-                photo_bytes = self._blur_faces(photo_bytes)
+            if blur_faces and decoded_photo_bytes:
+                decoded_photo_bytes = self._blur_faces(decoded_photo_bytes)
 
-            if photo_bytes and self.send_photo(photo_bytes, caption):
+            if decoded_photo_bytes and self.send_photo(decoded_photo_bytes, caption):
                 return True
 
         return self.send_message(caption)
@@ -338,6 +345,7 @@ class TelegramNotifier:
         cooldown_key: str,
         message: str,
         cooldown_seconds: int,
+        photo_bytes: bytes | None = None,
         annotated_base64: str | None = None,
     ) -> bool:
         now = dt.datetime.now()
@@ -347,7 +355,11 @@ class TelegramNotifier:
             if last_sent_at and (now - last_sent_at).total_seconds() < cooldown_seconds:
                 return False
 
-            sent = self.send_alert(message, annotated_base64=annotated_base64)
+            sent = self.send_alert(
+                message,
+                photo_bytes=photo_bytes,
+                annotated_base64=annotated_base64,
+            )
             if sent:
                 self._last_sent_at[cooldown_key] = now
             return sent
@@ -396,7 +408,13 @@ class TelegramNotifier:
             f"<b>Waktu:</b> {html.escape(timestamp)}"
         )
 
-    def notify_attendance_rejected(self, worker_name: str, ppe_status: dict, timestamp: str) -> bool:
+    def notify_attendance_rejected(
+        self,
+        worker_name: str,
+        ppe_status: dict,
+        timestamp: str,
+        photo_bytes: bytes | None = None,
+    ) -> bool:
         missing = self.format_missing_ppe(ppe_status)
         if not missing:
             return False
@@ -404,6 +422,7 @@ class TelegramNotifier:
         caption = self.build_attendance_caption(worker_name, ppe_status, timestamp)
         return self.send_alert(
             caption,
+            photo_bytes=photo_bytes,
             annotated_base64=ppe_status.get("annotated_base64"),
             blur_faces=True,
         )
@@ -413,6 +432,7 @@ class TelegramNotifier:
         ppe_status: dict,
         cooldown_seconds: int = 60,
         source_label: str = "Area Monitoring",
+        photo_bytes: bytes | None = None,
     ) -> bool:
         if not ppe_status.get("person_detected"):
             return False
@@ -428,6 +448,7 @@ class TelegramNotifier:
             cooldown_key,
             caption,
             cooldown_seconds,
+            photo_bytes=photo_bytes,
             annotated_base64=ppe_status.get("annotated_base64"),
         )
 

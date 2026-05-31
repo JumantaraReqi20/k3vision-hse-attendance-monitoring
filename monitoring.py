@@ -21,6 +21,7 @@ def monitor_frame(file: UploadFile = File(...)):
                 ppe_status=ppe_status,
                 cooldown_seconds=60,
                 source_label="Live Monitoring",
+                photo_bytes=image_bytes,
             )
 
     return {
