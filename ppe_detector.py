@@ -1,7 +1,6 @@
 import base64
 import logging
 import os
-import threading
 
 import cv2
 import numpy as np
@@ -11,7 +10,7 @@ cv2.setNumThreads(1)
 logger = logging.getLogger(__name__)
 
 
-class PPEDetector:
+class _LocalPPEDetector:
     def __init__(self):
         self.required_ppe = ("helmet", "vest", "boots")
         self.max_image_dim = 1280
@@ -38,7 +37,6 @@ class PPEDetector:
         }
         self.model = None
         self.class_names = {}
-        self._predict_lock = threading.Lock()
         self.load_model()
 
     def load_model(self):
@@ -54,7 +52,7 @@ class PPEDetector:
         else:
             logger.warning("[PPE] Model not found: %s. Running in placeholder mode.", model_path)
 
-    def _empty_result(self):
+    def empty_result(self, error: str | None = None):
         return {
             "person_detected": False,
             "helmet": False,
@@ -62,6 +60,7 @@ class PPEDetector:
             "boots": False,
             "boxes": [],
             "annotated_base64": None,
+            "error": error,
         }
 
     def _box_area(self, box):
@@ -148,14 +147,17 @@ class PPEDetector:
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None or self.model is None:
-            return self._empty_result()
+            return self.empty_result()
 
         img = self._resize_for_inference(img)
         height, width = img.shape[:2]
         image_area = width * height
         min_conf = min(self.class_thresholds.values())
-        with self._predict_lock:
+        try:
             results = self.model(img, verbose=False, conf=min_conf)
+        except Exception as e:
+            logger.error("[PPE] Model inference failed: %s", str(e))
+            return self.empty_result(error=f"PPE inference failed: {str(e)}")
 
         raw_boxes = []
         for result in results:
@@ -193,7 +195,9 @@ class PPEDetector:
         detected = {box["label"] for box in ppe_boxes}
 
         annotated_img = self._draw_boxes(img, final_boxes)
-        _, buffer = cv2.imencode(".jpg", annotated_img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        success, buffer = cv2.imencode(".jpg", annotated_img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if not success:
+            return self.empty_result(error="Failed to encode PPE annotation image")
 
         status = {
             "person_detected": len(human_boxes) > 0,
@@ -202,6 +206,7 @@ class PPEDetector:
             "boots": "boots" in detected,
             "boxes": final_boxes,
             "annotated_base64": base64.b64encode(buffer).decode("utf-8"),
+            "error": None,
         }
 
         logger.info(
@@ -213,6 +218,46 @@ class PPEDetector:
             [(b["label"], round(b["conf"], 2)) for b in final_boxes],
         )
         return status
+
+
+class PPEDetector:
+    def __init__(self):
+        self.model_path = "model/best.pt"
+        self._detector = None
+        self._init_detector()
+
+    def _init_detector(self):
+        """Initialize detector once at startup"""
+        try:
+            self._detector = _LocalPPEDetector()
+            logger.info("[PPE] PPE Detector initialized successfully")
+        except Exception as e:
+            logger.error("[PPE] Failed to initialize detector: %s", str(e))
+            self._detector = None
+
+    def _empty_result(self, error: str | None = None):
+        return {
+            "person_detected": False,
+            "helmet": False,
+            "vest": False,
+            "boots": False,
+            "boxes": [],
+            "annotated_base64": None,
+            "error": error,
+        }
+
+    def predict(self, image_bytes: bytes) -> dict:
+        if not os.path.exists(self.model_path):
+            return self._empty_result(error="Model file not found")
+
+        if self._detector is None:
+            return self._empty_result(error="Detector not initialized")
+
+        try:
+            return self._detector.predict(image_bytes)
+        except Exception as exc:
+            logger.exception("[PPE] Inference failed: %s", exc)
+            return self._empty_result(error=f"PPE inference failed: {str(exc)}")
 
 
 ppe_det = PPEDetector()

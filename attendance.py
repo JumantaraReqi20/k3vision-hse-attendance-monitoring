@@ -117,6 +117,16 @@ def check_attendance(file: UploadFile = File(...)):
     logger.info("[Attendance] Starting PPE detection for %s", worker_name)
     ppe_status = ppe_det.predict(image_bytes)
     logger.info("[Attendance] PPE detection finished for %s", worker_name)
+    if ppe_status.get("error"):
+        logger.error(
+            "[Attendance] PPE detection failed for %s: %s",
+            worker_name,
+            ppe_status["error"],
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="PPE detection is temporarily unavailable. Please try again.",
+        )
 
     # 4. Logic Acceptance/Rejection
     is_complete = ppe_status["helmet"] and ppe_status["vest"] and ppe_status["boots"]
