@@ -1109,7 +1109,7 @@
                             </div>
                             <div style="display:flex;justify-content:space-between;font-size:0.9rem">
                                 <span>🧠 AI Model</span>
-                                <span class="text-success">Loaded</span>
+                                <span id="modelStatus" class="text-warning">Loading...</span>
                             </div>
                             <div style="display:flex;justify-content:space-between;font-size:0.9rem">
                                 <span>💾 Database</span>
@@ -2180,7 +2180,7 @@
         // Auto load when date changes
         document.getElementById('dailyAttendanceDate').addEventListener('change', loadDailyAttendance);
 
-        // ===== ATTENDANCE SCAN =====
+        // ===== ATTENDANCE SCAN - CLIENT-SIDE INFERENCE =====
         document.getElementById('btnAttCheck').addEventListener('click', async () => {
             const video = document.getElementById('attVideo');
             const annotatedImage = document.getElementById('attAnnotated');
@@ -2204,14 +2204,31 @@
             
             try {
                 const blob = await captureFrame(video);
-                const d = await post('/attendance/check', blob);
-
-                showAnnotatedFrame(d.annotated_frame, annotatedImage);
                 
-                // Update overlay badges
-                document.getElementById('attWorkerDetected').style.display = 'flex';
-                document.getElementById('attWorkerName').textContent = `Worker: ${d.worker?.name || d.worker}`;
+                // ===== CLIENT-SIDE PPE INFERENCE =====
+                console.log('[Attendance] Running CLIENT-SIDE PPE detection...');
+                const ppeResult = await detectPPE(blob);
+                console.log('[Attendance] PPE Detection Complete:', ppeResult);
                 
+                if (ppeResult.error) {
+                    throw new Error(ppeResult.error);
+                }
+                
+                // ===== SERVER FACE IDENTIFICATION & VERIFICATION =====
+                const fd = new FormData();
+                fd.append('file', blob, 'frame.jpg');
+                fd.append('ppe_helmet', ppeResult.helmet ? '1' : '0');
+                fd.append('ppe_vest', ppeResult.vest ? '1' : '0');
+                fd.append('ppe_boots', ppeResult.boots ? '1' : '0');
+                
+                const res = await fetch(`${API}/attendance/check`, { method: 'POST', body: fd });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `HTTP ${res.status}`);
+                }
+                const d = await res.json();
+                
+                // Update overlay badges with CLIENT-SIDE PPE results
                 const updateBadge = (id, status, label) => {
                     const el = document.getElementById(id);
                     const dot = el.querySelector('.status-badge__dot');
@@ -2221,23 +2238,27 @@
                     text.textContent = `${label}: ${status ? '✅' : '❌'}`;
                 };
                 
-                updateBadge('attHelmStatus', d.helmet, '🪖 Helmet');
-                updateBadge('attVestStatus', d.vest, '🦺 Vest');
-                updateBadge('attBootsStatus', d.boots, '👢 Boots');
+                updateBadge('attHelmStatus', ppeResult.helmet, '🪖 Helmet');
+                updateBadge('attVestStatus', ppeResult.vest, '🦺 Vest');
+                updateBadge('attBootsStatus', ppeResult.boots, '👢 Boots');
                 
                 // Update side panel
                 ['sideHelm', 'sideVest', 'sideBoots'].forEach((id, idx) => {
                     const el = document.getElementById(id);
-                    const status = [d.helmet, d.vest, d.boots][idx];
+                    const status = [ppeResult.helmet, ppeResult.vest, ppeResult.boots][idx];
                     el.className = `ppe-item ${status ? 'ok' : 'missing'}`;
                 });
+                
+                // Update worker name
+                document.getElementById('attWorkerDetected').style.display = 'flex';
+                document.getElementById('attWorkerName').textContent = `Worker: ${d.worker?.name || d.worker}`;
                 
                 // Result display
                 const ppeHtml = `
                     <div class="ppe-status-grid">
-                        <div class="ppe-item ${d.helmet ? 'ok' : 'missing'}">🪖 Helmet ${d.helmet ? '✅' : '❌'}</div>
-                        <div class="ppe-item ${d.vest ? 'ok' : 'missing'}">🦺 Vest ${d.vest ? '✅' : '❌'}</div>
-                        <div class="ppe-item ${d.boots ? 'ok' : 'missing'}">👢 Boots ${d.boots ? '✅' : '❌'}</div>
+                        <div class="ppe-item ${ppeResult.helmet ? 'ok' : 'missing'}">🪖 Helmet ${ppeResult.helmet ? '✅' : '❌'}</div>
+                        <div class="ppe-item ${ppeResult.vest ? 'ok' : 'missing'}">🦺 Vest ${ppeResult.vest ? '✅' : '❌'}</div>
+                        <div class="ppe-item ${ppeResult.boots ? 'ok' : 'missing'}">👢 Boots ${ppeResult.boots ? '✅' : '❌'}</div>
                     </div>
                 `;
                 
@@ -2674,5 +2695,11 @@
             monAbort?.abort();
         });
     </script>
+
+    <!-- ONNX Runtime for client-side inference -->
+    <script async src="https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/ort.min.js"></script>
+    
+    <!-- K3Vision Client-Side Inference Engine -->
+    <script src="/inference.js"></script>
 </body>
 </html>

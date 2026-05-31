@@ -90,11 +90,24 @@ def identify_worker(file: UploadFile = File(...)):
     raise HTTPException(status_code=404, detail="Face not recognized or not registered")
 
 @router.post("/attendance/check")
-def check_attendance(file: UploadFile = File(...)):
+def check_attendance(
+    file: UploadFile = File(...),
+    ppe_helmet: str = Form(default="0"),
+    ppe_vest: str = Form(default="0"),
+    ppe_boots: str = Form(default="0")
+):
     image_bytes = file.file.read()
     logger.info("[Attendance] /attendance/check received %s bytes", len(image_bytes))
     
-    # 1. Cek apakah terdaftar
+    # Client-side PPE detection results
+    client_ppe_result = {
+        "helmet": ppe_helmet == "1",
+        "vest": ppe_vest == "1",
+        "boots": ppe_boots == "1"
+    }
+    logger.info("[Attendance] Client-side PPE results: %s", client_ppe_result)
+    
+    # 1. Verify worker by face identification (server-side)
     logger.info("[Attendance] Starting face identification")
     worker_name = face_rec.identify(image_bytes)
     if not worker_name:
@@ -107,33 +120,31 @@ def check_attendance(file: UploadFile = File(...)):
         logger.error("[Attendance] Worker DB lookup failed for %s", worker_name)
         raise HTTPException(500, "Worker DB lookup failed")
     
-    # 2. Kalau sudah pernah diterima hari ini, jangan terima absensi ulang.
-    # Record rejected tetap boleh mencoba lagi sampai APD lengkap.
+    # 2. Prevent duplicate accepted attendance
     if check_already_accepted_today(worker["id"]):
         logger.info("[Attendance] Duplicate accepted attendance blocked for %s", worker_name)
         raise HTTPException(status_code=403, detail=f"{worker_name} sudah memiliki absensi diterima hari ini.")
 
-    # 3. Deteksi APD
-    logger.info("[Attendance] Starting PPE detection for %s", worker_name)
-    ppe_status = ppe_det.predict(image_bytes)
-    logger.info("[Attendance] PPE detection finished for %s", worker_name)
-    if ppe_status.get("error"):
-        logger.error(
-            "[Attendance] PPE detection failed for %s: %s",
-            worker_name,
-            ppe_status["error"],
-        )
-        raise HTTPException(
-            status_code=503,
-            detail="PPE detection is temporarily unavailable. Please try again.",
-        )
+    # 3. Use CLIENT-SIDE PPE results (NO server inference)
+    ppe_status = {
+        "person_detected": True,  # We assume client always detects if sending results
+        "helmet": client_ppe_result["helmet"],
+        "vest": client_ppe_result["vest"],
+        "boots": client_ppe_result["boots"],
+        "gloves": False,  # Not required
+        "boxes": [],  # Client handles visualization
+        "annotated_base64": None,  # Client handles annotation
+        "error": None,
+    }
+    
+    logger.info("[Attendance] Using client-side PPE results for %s", worker_name)
 
     # 4. Logic Acceptance/Rejection
     is_complete = ppe_status["helmet"] and ppe_status["vest"] and ppe_status["boots"]
     attendance_status = "accepted" if is_complete else "rejected"
     timestamp = datetime.datetime.now().isoformat()
 
-    # 5. Simpan semua hasil absensi agar dashboard mencatat diterima dan ditolak
+    # 5. Save attendance record
     record_attendance(
         worker_id=worker["id"],
         timestamp=timestamp,
@@ -141,6 +152,7 @@ def check_attendance(file: UploadFile = File(...)):
         ppe=ppe_status
     )
 
+    # 6. Send Telegram notification if rejected
     telegram_sent = False
     if not is_complete:
         telegram_sent = telegram_notifier.notify_attendance_rejected(
@@ -148,6 +160,35 @@ def check_attendance(file: UploadFile = File(...)):
             ppe_status=ppe_status,
             timestamp=timestamp,
         )
+    
+    logger.info(
+        "[Attendance] Attendance recorded: worker=%s status=%s helmet=%s vest=%s boots=%s",
+        worker_name,
+        attendance_status,
+        ppe_status["helmet"],
+        ppe_status["vest"],
+        ppe_status["boots"],
+    )
+
+    return {
+        "worker": {"name": worker_name, "id": worker["id"]},
+        "attendance": attendance_status,
+        "helmet": ppe_status["helmet"],
+        "vest": ppe_status["vest"],
+        "boots": ppe_status["boots"],
+        "message": (
+            f"✅ Absensi {worker_name} diterima - APD lengkap (🪖 Helm ✓ 🦺 Rompi ✓ 👢 Sepatu ✓)"
+            if is_complete
+            else (
+                f"❌ Absensi {worker_name} ditolak - APD tidak lengkap. "
+                f"Hilang: {'🪖' if not ppe_status['helmet'] else ''} "
+                f"{'🦺' if not ppe_status['vest'] else ''} "
+                f"{'👢' if not ppe_status['boots'] else ''}".strip()
+            )
+        ),
+        "timestamp": timestamp,
+        "telegram_notified": telegram_sent,
+    }
         logger.info("[Attendance] Telegram rejection alert sent=%s for %s", telegram_sent, worker_name)
 
     response = {

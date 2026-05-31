@@ -66,8 +66,8 @@ Jika memakai GitHub:
 ```bash
 cd /var/www
 git clone URL_REPO_GITHUB k3vision
-chown -R www-data:www-data /var/www/k3vision
-cd /var/www/k3vision
+chown -R www-data:www-data /var/www/k3vision-hse-attendance-monitoring
+cd /var/www/k3vision-hse-attendance-monitoring
 ```
 
 Jika belum memakai GitHub, upload folder proyek lewat SFTP/VS Code lalu letakkan di:
@@ -93,7 +93,7 @@ Jika install `deepface` atau dependency lain gagal, catat error-nya. Biasanya ma
 Buat file `.env`:
 
 ```bash
-nano /var/www/k3vision/.env
+nano /var/www/k3vision-hse-attendance-monitoring/.env
 ```
 
 Isi minimal:
@@ -108,8 +108,8 @@ TELEGRAM_CHAT_IDS=isi_chat_id_anda
 Pastikan file berikut benar-benar ada:
 
 ```text
-/var/www/k3vision/model/best.pt
-/var/www/k3vision/k3vision_enc.key
+/var/www/k3vision-hse-attendance-monitoring/model/best.pt
+/var/www/k3vision-hse-attendance-monitoring/k3vision_enc.key
 ```
 
 Opsional jika ingin membawa data lama:
@@ -121,8 +121,8 @@ Opsional jika ingin membawa data lama:
 Atur permission:
 
 ```bash
-chown -R www-data:www-data /var/www/k3vision
-chmod 600 /var/www/k3vision/.env
+chown -R www-data:www-data /var/www/k3vision-hse-attendance-monitoring
+chmod 600 /var/www/k3vision-hse-attendance-monitoring/.env
 ```
 
 ## 9. Test manual dulu
@@ -130,7 +130,7 @@ chmod 600 /var/www/k3vision/.env
 Sebelum memakai service, jalankan manual:
 
 ```bash
-cd /var/www/k3vision
+cd /var/www/k3vision-hse-attendance-monitoring
 source venv/bin/activate
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
@@ -158,7 +158,7 @@ Di repo ini sudah disiapkan file:
 Copy ke server:
 
 ```bash
-cp /var/www/k3vision/deploy/k3vision.service /etc/systemd/system/k3vision.service
+cp /var/www/k3vision-hse-attendance-monitoring/deploy/k3vision.service /etc/systemd/system/k3vision.service
 ```
 
 Reload dan jalankan:
@@ -185,7 +185,7 @@ Di repo ini sudah disiapkan file:
 Edit dulu domainnya:
 
 ```bash
-nano /var/www/k3vision/deploy/nginx.k3vision.conf
+nano /var/www/k3vision-hse-attendance-monitoring/deploy/nginx.k3vision.conf
 ```
 
 Ganti:
@@ -196,7 +196,7 @@ Ganti:
 Lalu aktifkan:
 
 ```bash
-cp /var/www/k3vision/deploy/nginx.k3vision.conf /etc/nginx/sites-available/k3vision
+cp /var/www/k3vision-hse-attendance-monitoring/deploy/nginx.k3vision.conf /etc/nginx/sites-available/k3vision
 ln -s /etc/nginx/sites-available/k3vision /etc/nginx/sites-enabled/k3vision
 nginx -t
 systemctl restart nginx
@@ -213,7 +213,7 @@ systemctl restart nginx
 
 ```bash
 apt install -y certbot python3-certbot-nginx
-certbot --nginx -d domainanda.com -d www.domainanda.com
+certbot --nginx -d k3vision-polban.online -d www.k3vision-polban.online
 ```
 
 Setelah berhasil, akses aplikasi dari:
