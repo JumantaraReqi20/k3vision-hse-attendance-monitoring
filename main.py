@@ -24,6 +24,7 @@ app = FastAPI(title="K3Vision MVP", version="1.0.0")
 
 # Serve UI statis
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/model", StaticFiles(directory="model"), name="model")
 
 @app.on_event("startup")
 def startup_event():

@@ -5,6 +5,7 @@
 
 let ortSession = null;
 let modelReady = false;
+let inferenceInitPromise = null;
 
 // Model configuration
 const MODEL_CONFIG = {
@@ -37,13 +38,30 @@ async function initializeInference() {
         
         modelReady = true;
         console.log('[Inference] ✓ Model loaded successfully');
-        document.getElementById('modelStatus')?.innerText = '✓ Model Ready';
+        const modelStatusEl = document.getElementById('modelStatus');
+        if (modelStatusEl) modelStatusEl.innerText = '✓ Model Ready';
         return true;
     } catch (error) {
         console.error('[Inference] Failed to load model:', error);
-        document.getElementById('modelStatus')?.innerText = '✗ Model Failed';
+        const modelStatusEl = document.getElementById('modelStatus');
+        if (modelStatusEl) modelStatusEl.innerText = '✗ Model Failed';
         throw error;
     }
+}
+
+async function ensureInferenceReady() {
+    if (modelReady) {
+        return true;
+    }
+
+    if (!inferenceInitPromise) {
+        inferenceInitPromise = initializeInference().catch(error => {
+            inferenceInitPromise = null;
+            throw error;
+        });
+    }
+
+    return inferenceInitPromise;
 }
 
 /**
@@ -295,3 +313,5 @@ if (document.readyState === 'loading') {
 } else {
     initializeInference();
 }
+
+window.ensureInferenceReady = ensureInferenceReady;

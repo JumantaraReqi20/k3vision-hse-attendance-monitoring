@@ -364,6 +364,166 @@
             border: 1px solid rgba(255,255,255,0.15);
         }
 
+        .monitoring-toolbar {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 0 20px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 16px;
+        }
+
+        .monitoring-toolbar__meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .monitoring-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            padding: 0 20px 20px;
+        }
+
+        .camera-card {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-glass);
+        }
+
+        .camera-card__preview {
+            position: relative;
+            aspect-ratio: 4 / 3;
+            background: #020617;
+            overflow: hidden;
+        }
+
+        .camera-card__preview video,
+        .camera-card__preview img,
+        .camera-card__preview .camera-card__placeholder {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .camera-card__preview video {
+            object-fit: cover;
+            display: block;
+            transform: none;
+        }
+
+        .camera-card__preview img {
+            object-fit: cover;
+            display: none;
+        }
+
+        .camera-card__placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 8px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 20px;
+            background: radial-gradient(circle at top, rgba(37, 99, 235, 0.18), rgba(2, 6, 23, 0.95));
+        }
+
+        .camera-card__body {
+            padding: 0 14px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .camera-card__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .camera-card__title {
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .camera-card__meta {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .camera-card__warning {
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: rgba(220, 38, 38, 0.15);
+            color: #fecaca;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .camera-grid__empty {
+            grid-column: 1 / -1;
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted);
+            border: 1px dashed rgba(255,255,255,0.12);
+            border-radius: var(--radius-lg);
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .monitoring-log-section {
+            margin-top: 20px;
+        }
+
+        .monitoring-log-section .card {
+            background: var(--bg-card);
+        }
+
+        .monitoring-bottom-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+            gap: 20px;
+            align-items: stretch;
+            margin-top: 20px;
+        }
+
+        .monitoring-bottom-grid .monitoring-log-section {
+            margin-top: 0;
+            min-width: 0;
+        }
+
+        .monitoring-bottom-grid .status-widget {
+            margin-top: 0;
+            min-height: 100%;
+        }
+
         .live-camera-dashboard video {
             width: 100%;
             height: 100%;
@@ -497,6 +657,15 @@
             color: var(--text-primary);
         }
         .btn-outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+
+        .btn-refresh-camera {
+            color: white !important;
+        }
+
+        .btn-refresh-camera:hover:not(:disabled) {
+            color: white !important;
+            border-color: rgba(255,255,255,0.9) !important;
+        }
 
         .btn-lg { padding: 16px 32px; font-size: 1.05rem; min-width: 180px; }
 
@@ -859,6 +1028,8 @@
             .sidebar { transform: translateX(-100%); }
             .sidebar.mobile-open { transform: translateX(0); }
             .grid-cards { grid-template-columns: repeat(2, 1fr); }
+            .camera-grid { grid-template-columns: 1fr; }
+            .monitoring-bottom-grid { grid-template-columns: 1fr; }
             .ppe-status-grid { grid-template-columns: 1fr; }
             .floating-controls { bottom: 12px; }
         }
@@ -1470,96 +1641,59 @@
         <section id="monitor" class="page">
             <div class="page-header">
                 <h1 class="page-title">📡 Monitoring Live</h1>
-                <p class="page-subtitle">Real-time surveillance dengan AI detection overlay</p>
+                <p class="page-subtitle">Real-time surveillance dengan inference lokal untuk semua kamera yang terhubung</p>
             </div>
             
-            <div class="grid-2col">
-                <!-- LEFT: Live Camera (70%) -->
-                <div class="card" style="padding:0;overflow:hidden">
-                    <div class="live-camera-dashboard" style="border-radius:0">
-                        <video id="monVideo" autoplay playsinline muted></video>
-                        <img id="monAnnotated" class="annotation-frame" alt="" style="display:none">
-                        
-                        <div class="camera-status-overlay">
-                            <div class="status-badge status-badge--ok" id="monPersonDetected" style="display:none">
-                                <span class="status-badge__dot"></span>
-                                <span>👤 Person Detected</span>
-                            </div>
-                            <div class="status-badge" id="monHelmBadge">
-                                <span class="status-badge__dot"></span>
-                                <span>🪖 Helmet</span>
-                            </div>
-                            <div class="status-badge" id="monVestBadge">
-                                <span class="status-badge__dot"></span>
-                                <span>🦺 Vest</span>
-                            </div>
-                            <div class="status-badge" id="monBootsBadge">
-                                <span class="status-badge__dot"></span>
-                                <span>👢 Boots</span>
-                            </div>
-                        </div>
-                        
-                        <div class="camera-recording" id="monLiveIndicator" style="display:none">
-                            <span class="camera-recording__dot"></span>
-                            <span>LIVE</span>
-                        </div>
-                        
-                        <!-- Floating Controls -->
-                        <div class="floating-controls">
-                            <button id="btnMonStart" class="btn btn-success">
-                                ▶️ Mulai
-                            </button>
-                            <button id="btnMonStop" class="btn btn-danger" disabled>
-                                ⏹️ Stop
-                            </button>
-                        </div>
+            <div class="card" style="padding:0;overflow:hidden;background:linear-gradient(180deg, #0f172a 0%, #111827 100%);">
+                <div class="monitoring-toolbar">
+                    <div>
+                        <div class="card__title" style="color:white">Kamera Lokal Terdeteksi</div>
+                        <div class="card__subtitle">Semua kamera akan dianalisis langsung di mesin ini</div>
+                    </div>
+                    <div class="monitoring-toolbar__meta">
+                        <span class="monitoring-pill" id="monMonitorState">Idle</span>
+                        <span class="monitoring-pill" id="monCameraCount">0 kamera</span>
                     </div>
                 </div>
-                
-                <!-- RIGHT: Warning Panel (30%) -->
-                <div class="monitoring-side-panel">
-                    <div class="warning-panel" id="monWarning">
-                        <span class="warning-panel__icon"></span>
-                        <span class="warning-panel__text" id="monWarningText">Warning message</span>
+
+                <div id="monCameraGrid" class="camera-grid">
+                    <div class="camera-grid__empty">Klik "Mulai Lokal" untuk memindai dan memproses semua kamera yang terhubung.</div>
+                </div>
+
+                <div class="controls" style="padding:0 20px 20px;margin-top:0;justify-content:flex-start">
+                    <button id="btnMonRefresh" class="btn btn-outline btn-lg btn-refresh-camera" type="button">
+                        🔄 Refresh Kamera
+                    </button>
+                    <button id="btnMonStart" class="btn btn-success btn-lg" type="button">
+                        ▶️ Mulai Lokal
+                    </button>
+                    <button id="btnMonStop" class="btn btn-danger btn-lg" type="button" disabled>
+                        ⏹️ Stop
+                    </button>
+                </div>
+            </div>
+
+            <div class="monitoring-bottom-grid">
+            <div class="monitoring-log-section">
+                <div class="card">
+                    <div class="card__header">
+                        <div class="card__title">Detection Log</div>
                     </div>
-                    
-                    <div class="status-widget">
-                        <div class="status-widget__title">PPE Status</div>
-                        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
-                            <div style="display:flex;align-items:center;justify-content:space-between">
-                                <span>🪖 Safety Helmet</span>
-                                <span class="status-badge status-badge--ok" id="monHelmStatus">✅</span>
-                            </div>
-                            <div style="display:flex;align-items:center;justify-content:space-between">
-                                <span>🦺 Safety Vest</span>
-                                <span class="status-badge status-badge--ok" id="monVestStatus">✅</span>
-                            </div>
-                            <div style="display:flex;align-items:center;justify-content:space-between">
-                                <span>👢 Safety Boots</span>
-                                <span class="status-badge status-badge--ok" id="monBootsStatus">✅</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <div class="card__header">
-                            <div class="card__title">Detection Log</div>
-                        </div>
-                        <div class="log-list" id="monLog">
-                            <div class="text-center text-muted" style="padding:12px">Start monitoring to see detections</div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-widget">
-                        <div class="status-widget__title">System Info</div>
-                        <div style="font-size:0.85rem;line-height:1.8">
-                            <div>🎥 Resolution: <strong>640×480</strong></div>
-                            <div>🧠 Model: <strong>YOLOv11n</strong></div>
-                            <div>⚡ FPS Target: <strong>~8 FPS</strong></div>
-                            <div>🔗 Status: <span id="monConnStatus" class="text-success">Ready</span></div>
-                        </div>
+                    <div class="log-list" id="monLog">
+                        <div class="text-center text-muted" style="padding:12px">Start monitoring to see detections</div>
                     </div>
                 </div>
+            </div>
+
+            <div class="status-widget">
+                <div class="status-widget__title">System Info</div>
+                <div style="font-size:0.85rem;line-height:1.8">
+                    <div>🎥 Source: <strong>Semua kamera lokal</strong></div>
+                    <div>🧠 Model: <strong>YOLOv11n</strong></div>
+                    <div>⚡ Interval: <strong>~4 detik</strong></div>
+                    <div>🔗 Status: <span id="monConnStatus" class="text-success">Ready</span></div>
+                </div>
+            </div>
             </div>
         </section>
 
@@ -1572,9 +1706,11 @@
         // ===== CONFIG =====
         const API = window.location.origin;
         let streams = {};
-        let monAbort = null;
         let monRunning = false;
-        const MONITOR_INTERVAL_MS = 15000;
+        let monRefreshTimer = null;
+        let monLastStateSignature = '';
+        const seenMonitorEvents = new Set();
+        const MONITOR_REFRESH_MS = 30000;
         let regBlob = null;
         let regPreviewUrl = null;
         let attBlob = null;
@@ -1583,6 +1719,7 @@
         // ===== CAMERA ENUMERATION & SELECTION =====
         async function enumerateCameras() {
             try {
+                if (!navigator.mediaDevices?.enumerateDevices) return;
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoInputs = devices.filter(device => device.kind === 'videoinput');
                 const cameraSelect = document.getElementById('cameraSelect');
@@ -1600,13 +1737,13 @@
                     cameraSelect.appendChild(option);
                 });
                 
-                // Restore previously selected camera or use default
+                // Restore previously selected camera; leave empty selection idle
                 if (selectedCameraId && [...cameraSelect.options].some(opt => opt.value === selectedCameraId)) {
                     cameraSelect.value = selectedCameraId;
-                } else if (videoInputs.length > 0) {
-                    // Prefer external camera (usually not index 0)
-                    cameraSelect.value = videoInputs.length > 1 ? videoInputs[1].deviceId : videoInputs[0].deviceId;
-                    selectedCameraId = cameraSelect.value;
+                } else {
+                    cameraSelect.value = '';
+                    selectedCameraId = '';
+                    localStorage.removeItem('selectedCameraId');
                 }
             } catch (e) {
                 console.error('Error enumerating cameras:', e);
@@ -1619,17 +1756,28 @@
         // Listen for camera selection change
         document.getElementById('cameraSelect').addEventListener('change', (e) => {
             selectedCameraId = e.target.value;
-            localStorage.setItem('selectedCameraId', selectedCameraId);
+            if (selectedCameraId) {
+                localStorage.setItem('selectedCameraId', selectedCameraId);
+            } else {
+                localStorage.removeItem('selectedCameraId');
+            }
             
             // Reinitialize camera for active page
             const activePage = document.querySelector('.page.active')?.id;
-            if (['attendance', 'register', 'monitor'].includes(activePage)) {
-                initCamera(activePage);
+            if (['attendance', 'register'].includes(activePage)) {
+                if (selectedCameraId) {
+                    initCamera(activePage);
+                } else {
+                    stopAppCameraStreams();
+                    setAppCameraIdle();
+                }
             }
         });
 
         // Re-enumerate cameras when permissions might have changed
-        navigator.mediaDevices.addEventListener('devicechange', enumerateCameras);
+        if (navigator.mediaDevices?.addEventListener) {
+            navigator.mediaDevices.addEventListener('devicechange', enumerateCameras);
+        }
 
         // ===== REALTIME CLOCK =====
         function updateClock() {
@@ -1654,12 +1802,19 @@
                 tab.classList.add('active');
                 const target = tab.dataset.target;
                 document.getElementById(target).classList.add('active');
-                
-                // Init camera for relevant pages
-                if (['attendance', 'register', 'monitor'].includes(target)) {
-                    initCamera(target);
+
+                if (target !== 'monitor') {
+                    monRunning = false;
+                    stopMonitorPolling();
+                    stopMonitorStreams();
+                    setMonitorButtons(false);
                 }
                 
+                // Init camera for relevant pages
+                if (['attendance', 'register'].includes(target)) {
+                    initCamera(target);
+                }
+
                 // Load data for dashboard pages
                 if (target === 'dashboard') loadDashboardStats();
                 if (target === 'attendance') loadLatestAttendance();
@@ -1667,11 +1822,43 @@
                 if (target === 'history') loadHistory();
                 if (target === 'daily-attendance') loadDailyAttendance();
                 if (target === 'reports') loadReport();
+                if (target === 'monitor') loadMonitorPage();
             });
         });
 
         // ===== CAMERA INIT =====
+        async function openAppCameraStream() {
+            if (!selectedCameraId) {
+                throw new Error('No camera selected');
+            }
+
+            const baseConstraints = {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user'
+            };
+            const attempts = [];
+
+            attempts.push({ ...baseConstraints, deviceId: { exact: selectedCameraId } });
+            attempts.push({ ...baseConstraints, deviceId: { ideal: selectedCameraId } });
+
+            let lastError = null;
+            for (const videoConstraints of attempts) {
+                try {
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: videoConstraints,
+                        audio: false,
+                    });
+                } catch (e) {
+                    lastError = e;
+                }
+            }
+
+            throw lastError || new Error('Camera unavailable');
+        }
+
         async function initCamera(section) {
+            if (section === 'monitor') return;
             const videoId = section === 'register' ? 'regVideo' : 
                            section === 'attendance' ? 'attVideo' : 'monVideo';
             const video = document.getElementById(videoId);
@@ -1679,24 +1866,17 @@
             // Stop existing stream
             if (streams[section]) {
                 streams[section].getTracks().forEach(t => t.stop());
+                delete streams[section];
+            }
+
+            if (!selectedCameraId) {
+                if (video) video.srcObject = null;
+                setAppCameraIdle();
+                return;
             }
             
             try {
-                // Camera constraints with selected device
-                const constraints = { 
-                    video: { 
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: 'user'
-                    } 
-                };
-                
-                // If a camera is selected, use its deviceId
-                if (selectedCameraId) {
-                    constraints.video.deviceId = { exact: selectedCameraId };
-                }
-                
-                streams[section] = await navigator.mediaDevices.getUserMedia(constraints);
+                streams[section] = await openAppCameraStream();
                 video.srcObject = streams[section];
                 
                 // Update status indicator
@@ -1713,19 +1893,44 @@
             }
         }
 
+        function stopAppCameraStreams() {
+            Object.keys(streams).forEach(section => {
+                try {
+                    streams[section]?.getTracks().forEach(track => track.stop());
+                } catch (e) {
+                    console.warn(`Failed to stop ${section} stream:`, e);
+                }
+                delete streams[section];
+            });
+        }
+
+        function setAppCameraIdle() {
+            document.querySelectorAll('#attVideo, #regVideo').forEach(video => {
+                video.srcObject = null;
+            });
+
+            const statusEl = document.getElementById('cameraStatus');
+            if (statusEl) {
+                statusEl.classList.remove('active');
+                const textEl = statusEl.querySelector('span:last-child');
+                if (textEl) textEl.textContent = 'Camera: Idle';
+            }
+        }
+
         // ===== CAPTURE FRAME =====
-        async function captureFrame(video) {
+        async function captureFrameBlob(video, mirror = true) {
             const canvas = document.getElementById('hiddenCanvas');
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
             const ctx = canvas.getContext('2d');
             
-            // Mirror fix for selfie camera
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.save();
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
+            if (mirror) {
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+            }
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             ctx.restore();
             
@@ -1857,20 +2062,15 @@
 
         function resetMonitoringInference() {
             hideAnnotatedFrame(document.getElementById('monAnnotated'));
-            document.getElementById('monPersonDetected').style.display = 'none';
+            const monPersonDetectedEl = document.getElementById('monPersonDetected');
+            if (monPersonDetectedEl) monPersonDetectedEl.style.display = 'none';
             document.getElementById('monWarning')?.classList.remove('show');
-            document.getElementById('alertBadge').style.display = 'none';
+            const alertBadgeEl = document.getElementById('alertBadge');
+            if (alertBadgeEl) alertBadgeEl.style.display = 'none';
 
             resetStatusBadge('monHelmBadge', '🪖 Helmet');
             resetStatusBadge('monVestBadge', '🦺 Vest');
             resetStatusBadge('monBootsBadge', '👢 Boots');
-
-            ['monHelmStatus', 'monVestStatus', 'monBootsStatus'].forEach(id => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                el.className = 'status-badge status-badge--ok';
-                el.textContent = '✅';
-            });
         }
 
         // ===== DASHBOARD STATS =====
@@ -2203,7 +2403,7 @@
             });
             
             try {
-                const blob = await captureFrame(video);
+                const blob = await captureFrameBlob(video);
                 
                 // ===== CLIENT-SIDE PPE INFERENCE =====
                 console.log('[Attendance] Running CLIENT-SIDE PPE detection...');
@@ -2363,7 +2563,7 @@
         }
         document.getElementById('btnRegCapture').addEventListener('click', async () => {
             const video = document.getElementById('regVideo');
-            const capturedBlob = await captureFrame(video);
+            const capturedBlob = await captureFrameBlob(video);
             setRegistrationImage(capturedBlob, 'Dari kamera');
             document.getElementById('btnRegCapture').innerHTML = '✅ Foto Diambil';
             document.getElementById('btnRegCapture').classList.add('btn-success');
@@ -2479,125 +2679,526 @@
             }
         }
         
-        async function monitorLoop() {
-            if (!monRunning) return;
-            
-            const video = document.getElementById('monVideo');
-            const annotatedImage = document.getElementById('monAnnotated');
-            
-            monAbort?.abort();
-            monAbort = new AbortController();
-            
-            try {
-                const blob = await captureFrame(video);
-                const fd = new FormData();
-                fd.append('file', blob, 'frame.jpg');
-                
-                const res = await fetch(`${API}/monitor/frame`, { 
-                    method: 'POST', 
-                    body: fd, 
-                    signal: monAbort.signal 
-                });
-                
-                if (!res.ok) throw new Error('Server error');
-                const d = await res.json();
-                
-                // Show the exact annotated frame returned by inference
-                showAnnotatedFrame(d.annotated_frame, annotatedImage);
-                
-                // Update status badges
-                const updateMonBadge = (id, status) => {
-                    const el = document.getElementById(id);
-                    const dot = el.querySelector('.status-badge__dot');
-                    dot.style.background = status ? 'var(--success)' : 'var(--danger)';
-                    el.className = `status-badge status-badge--${status ? 'ok' : 'danger'}`;
-                };
-                
-                updateMonBadge('monHelmBadge', d.ppe_status?.helmet);
-                updateMonBadge('monVestBadge', d.ppe_status?.vest);
-                updateMonBadge('monBootsBadge', d.ppe_status?.boots);
-                
-                document.getElementById('monHelmStatus').textContent = d.ppe_status?.helmet ? '✅' : '❌';
-                document.getElementById('monVestStatus').textContent = d.ppe_status?.vest ? '✅' : '❌';
-                document.getElementById('monBootsStatus').textContent = d.ppe_status?.boots ? '✅' : '❌';
-                
-                // Person detected indicator
-                const personEl = document.getElementById('monPersonDetected');
-                if (d.person_detected) {
-                    personEl.style.display = 'flex';
-                } else {
-                    personEl.style.display = 'none';
-                }
-                
-                // Warning panel - Only show if person detected AND warning exists
-                const warningEl = document.getElementById('monWarning');
-                const warningText = document.getElementById('monWarningText');
-                
-                if (d.person_detected && d.warning) {
-                    warningEl.classList.add('show');
-                    warningText.textContent = d.warning;
-                    
-                    // Play beep sound (only once per warning, not continuously)
-                    const now = Date.now();
-                    if (now - lastWarnedTime > 2000) { // Beep at most every 2 seconds
-                        playBeepSound();
-                        lastWarnedTime = now;
-                    }
-                    
-                    // Add to log
-                    const logEl = document.getElementById('monLog');
-                    const time = new Date().toLocaleTimeString('id-ID');
-                    logEl.innerHTML = `
-                        <div class="log-item">
-                            <span class="log-item__name" style="color:var(--danger)">⚠️ ${d.warning}</span>
-                            <span class="log-item__time">${time}</span>
-                        </div>
-                    ` + logEl.innerHTML;
-                    
-                    // Show alert badge
-                    document.getElementById('alertBadge').style.display = 'inline';
-                } else {
-                    warningEl.classList.remove('show');
-                    // Reset warning time when no warning
-                    if (!d.warning) {
-                        lastWarnedTime = 0;
-                    }
-                }
-                
-                // Connection status
-                document.getElementById('monConnStatus').textContent = `Connected (${new Date().toLocaleTimeString('id-ID')})`;
-                document.getElementById('monConnStatus').className = 'text-success';
-                
-            } catch (e) { 
-                if (e.name !== 'AbortError') {
-                    console.warn('Monitor error:', e);
-                    document.getElementById('monConnStatus').textContent = 'Error';
-                    document.getElementById('monConnStatus').className = 'text-danger';
-                }
-            } finally { 
-                if (monRunning) setTimeout(monitorLoop, MONITOR_INTERVAL_MS); 
+        // ===== BROWSER MULTI-CAMERA MONITORING =====
+        let monitorStreams = {};
+        let monitorDevices = [];
+        let monitorCaptureInProgress = false;
+        let monitorAnnotationTimers = {};
+        const MONITOR_ANNOTATION_VISIBLE_MS = 4000;
+
+        function stopMonitorPolling() {
+            if (monRefreshTimer) {
+                clearTimeout(monRefreshTimer);
+                monRefreshTimer = null;
             }
         }
 
-        document.getElementById('btnMonStart').addEventListener('click', () => {
-            monRunning = true;
-            document.getElementById('btnMonStart').disabled = true;
-            document.getElementById('btnMonStop').disabled = false;
-            document.getElementById('monLiveIndicator').style.display = 'flex';
-            document.getElementById('monStatus')?.classList.add('active');
-            monitorLoop();
-        });
+        function setMonitorButtons(running) {
+            const startBtn = document.getElementById('btnMonStart');
+            const stopBtn = document.getElementById('btnMonStop');
+            const refreshBtn = document.getElementById('btnMonRefresh');
+            const stateEl = document.getElementById('monMonitorState');
 
-        document.getElementById('btnMonStop').addEventListener('click', () => {
+            if (startBtn) startBtn.disabled = running;
+            if (stopBtn) stopBtn.disabled = !running;
+            if (refreshBtn) refreshBtn.disabled = running;
+            if (stateEl) stateEl.textContent = running ? 'Running' : 'Idle';
+        }
+
+        function appendMonitorEvent(event) {
+            if (!event?.warning) return;
+
+            const signature = `${event.camera_label || ''}-${event.timestamp || ''}-${event.warning}`;
+            if (seenMonitorEvents.has(signature)) return;
+            seenMonitorEvents.add(signature);
+
+            const logEl = document.getElementById('monLog');
+            if (!logEl) return;
+
+            const time = event.timestamp
+                ? new Date(event.timestamp).toLocaleTimeString('id-ID')
+                : new Date().toLocaleTimeString('id-ID');
+            const emptyEl = logEl.querySelector('.text-center');
+            if (emptyEl) emptyEl.remove();
+
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `
+                <div class="log-item__time">${time}</div>
+                <div class="log-item__content">
+                    <strong>${event.camera_label || 'Kamera Lokal'}</strong><br>
+                    ${event.warning}
+                </div>
+            `;
+            logEl.prepend(item);
+
+            while (logEl.children.length > 20) {
+                logEl.lastElementChild?.remove();
+            }
+
+            const badgeEl = document.getElementById('alertBadge');
+            if (badgeEl) badgeEl.style.display = 'inline-flex';
+            const now = Date.now();
+            if (now - lastWarnedTime > 10000) {
+                playBeepSound();
+                lastWarnedTime = now;
+            }
+        }
+
+        function waitForVideoReady(videoEl, timeoutMs = 5000) {
+            if (videoEl.readyState >= HTMLMediaElement.HAVE_METADATA && videoEl.videoWidth > 0) {
+                return Promise.resolve();
+            }
+
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    cleanup();
+                    reject(new Error('Video stream timeout'));
+                }, timeoutMs);
+
+                const onReady = () => {
+                    if (videoEl.videoWidth > 0 || videoEl.readyState >= HTMLMediaElement.HAVE_METADATA) {
+                        cleanup();
+                        resolve();
+                    }
+                };
+
+                const onError = () => {
+                    cleanup();
+                    reject(new Error('Video stream failed'));
+                };
+
+                const cleanup = () => {
+                    clearTimeout(timeout);
+                    videoEl.removeEventListener('loadedmetadata', onReady);
+                    videoEl.removeEventListener('canplay', onReady);
+                    videoEl.removeEventListener('error', onError);
+                };
+
+                videoEl.addEventListener('loadedmetadata', onReady);
+                videoEl.addEventListener('canplay', onReady);
+                videoEl.addEventListener('error', onError);
+            });
+        }
+
+        async function openMonitorStream(camera) {
+            const baseConstraints = {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+            };
+            const attempts = [];
+
+            if (camera.deviceId && camera.deviceId !== 'default') {
+                attempts.push({ ...baseConstraints, deviceId: { exact: camera.deviceId } });
+                attempts.push({ ...baseConstraints, deviceId: { ideal: camera.deviceId } });
+            }
+            attempts.push(baseConstraints);
+
+            let lastError = null;
+            for (const videoConstraints of attempts) {
+                try {
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: videoConstraints,
+                        audio: false,
+                    });
+                } catch (e) {
+                    lastError = e;
+                }
+            }
+
+            throw lastError || new Error('Camera unavailable');
+        }
+
+        async function unlockCameraLabels() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                stream.getTracks().forEach(track => track.stop());
+            } catch (e) {
+                console.warn('Could not unlock camera labels:', e);
+            }
+        }
+
+        async function getAvailableMonitorCameras() {
+            if (!navigator.mediaDevices?.enumerateDevices) return [];
+
+            const mapVideoInputs = (devices) => devices
+                .filter(device => device.kind === 'videoinput')
+                .map((device, index) => ({
+                    index,
+                    deviceId: device.deviceId,
+                    label: device.label || `Camera ${index + 1}`,
+                }));
+
+            let cameras = mapVideoInputs(await navigator.mediaDevices.enumerateDevices());
+
+            if (cameras.length === 0) {
+                await unlockCameraLabels();
+                cameras = mapVideoInputs(await navigator.mediaDevices.enumerateDevices());
+            }
+
+            if (cameras.length === 0) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    stream.getTracks().forEach(track => track.stop());
+                    cameras = [{ index: 0, deviceId: 'default', label: 'Default Camera' }];
+                } catch (e) {
+                    console.warn('Fallback camera probe failed:', e);
+                }
+            }
+
+            return cameras;
+        }
+
+        function cameraKey(index, deviceId) {
+            return String(index ?? deviceId ?? '');
+        }
+
+        function renderMonitorCards(cameras) {
+            const grid = document.getElementById('monCameraGrid');
+            if (!grid) return;
+
+            if (!cameras || cameras.length === 0) {
+                grid.innerHTML = '<div class="camera-grid__empty">Tidak ada kamera yang terdeteksi. Pastikan izin kamera sudah diberikan.</div>';
+                const countEl = document.getElementById('monCameraCount');
+                if (countEl) countEl.textContent = '0 kamera';
+                return;
+            }
+
+            const countEl = document.getElementById('monCameraCount');
+            if (countEl) countEl.textContent = `${cameras.length} kamera`;
+
+            grid.innerHTML = cameras.map(camera => {
+                const key = cameraKey(camera.index, camera.deviceId);
+                return `
+                    <div class="camera-card" id="monCard-${key}">
+                        <div class="camera-card__preview">
+                            <video id="monVideo-${key}" autoplay playsinline muted></video>
+                            <img id="monAnnotated-${key}" class="annotation-frame" alt="" style="display:none">
+                            <div class="camera-card__placeholder" id="monPlaceholder-${key}">
+                                <div style="font-size:1.3rem">📷</div>
+                                <div>${camera.label}</div>
+                                <div>Menunggu kamera aktif</div>
+                            </div>
+                        </div>
+                        <div class="camera-card__body">
+                            <div class="camera-card__header">
+                                <div class="camera-card__title">${camera.label}</div>
+                                <div class="status-badge status-badge--warn" id="monBadge-${key}">
+                                    <span class="status-badge__dot"></span>
+                                    <span>Idle</span>
+                                </div>
+                            </div>
+                            <div class="camera-card__meta" id="monMeta-${key}">Belum ada stream</div>
+                            <div class="ppe-status-grid" style="grid-template-columns:repeat(3,1fr);gap:6px;margin:0">
+                                <div class="ppe-item ok" id="monHelmCard-${key}">🪖 Helm</div>
+                                <div class="ppe-item ok" id="monVestCard-${key}">🦺 Rompi</div>
+                                <div class="ppe-item ok" id="monBootsCard-${key}">👢 Sepatu</div>
+                            </div>
+                            <div class="camera-card__warning" id="monWarningCard-${key}" style="display:none"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function attachMonitorStreams(cameras) {
+            for (const camera of cameras) {
+                const key = cameraKey(camera.index, camera.deviceId);
+                const videoEl = document.getElementById(`monVideo-${key}`);
+                const placeholderEl = document.getElementById(`monPlaceholder-${key}`);
+                const badgeEl = document.getElementById(`monBadge-${key}`);
+                const metaEl = document.getElementById(`monMeta-${key}`);
+
+                if (!videoEl || !badgeEl || !metaEl) continue;
+
+                try {
+                    if (monitorStreams[key]) {
+                        monitorStreams[key].getTracks().forEach(track => track.stop());
+                    }
+
+                    const stream = await openMonitorStream(camera);
+                    monitorStreams[key] = stream;
+                    videoEl.srcObject = stream;
+                    await videoEl.play().catch(() => {});
+                    await waitForVideoReady(videoEl);
+                    badgeEl.className = 'status-badge status-badge--ok';
+                    const statusText = badgeEl.querySelector('span:last-child');
+                    if (statusText) statusText.textContent = 'Online';
+                    if (placeholderEl) placeholderEl.style.display = 'none';
+                    metaEl.textContent = `${camera.label} • Stream aktif`;
+                } catch (e) {
+                    console.warn(`Failed to open camera ${camera.label}:`, e);
+                    badgeEl.className = 'status-badge status-badge--danger';
+                    const statusText = badgeEl.querySelector('span:last-child');
+                    if (statusText) statusText.textContent = 'Offline';
+                    if (placeholderEl) {
+                        placeholderEl.style.display = 'flex';
+                        placeholderEl.innerHTML = `
+                            <div style="font-size:1.3rem">📷</div>
+                            <div>${camera.label}</div>
+                            <div>Gagal membuka kamera</div>
+                        `;
+                    }
+                    metaEl.textContent = 'Kamera tidak bisa diakses';
+                }
+            }
+        }
+
+        function stopMonitorStreams() {
+            Object.values(monitorStreams).forEach(stream => {
+                try {
+                    stream.getTracks().forEach(track => track.stop());
+                } catch (e) {
+                    console.warn('Failed to stop stream:', e);
+                }
+            });
+            monitorStreams = {};
+            Object.values(monitorAnnotationTimers).forEach(timer => clearTimeout(timer));
+            monitorAnnotationTimers = {};
+
+        }
+
+        function blobToImage(blob) {
+            return new Promise((resolve, reject) => {
+                const image = new Image();
+                const url = URL.createObjectURL(blob);
+                image.onload = () => {
+                    URL.revokeObjectURL(url);
+                    resolve(image);
+                };
+                image.onerror = error => {
+                    URL.revokeObjectURL(url);
+                    reject(error);
+                };
+                image.src = url;
+            });
+        }
+
+        async function buildAnnotatedFrame(blob, detections) {
+            if (typeof drawDetections !== 'function' || typeof canvasToBase64 !== 'function') {
+                return null;
+            }
+
+            const image = await blobToImage(blob);
+            const canvas = document.createElement('canvas');
+            canvas.width = image.naturalWidth || image.width;
+            canvas.height = image.naturalHeight || image.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+            drawDetections(canvas, detections || []);
+            return canvasToBase64(canvas, 0.8);
+        }
+
+        function updateMonitorCard(camera, result) {
+            const key = cameraKey(camera.index, camera.deviceId);
+            const imageEl = document.getElementById(`monAnnotated-${key}`);
+            const placeholderEl = document.getElementById(`monPlaceholder-${key}`);
+            const badgeEl = document.getElementById(`monBadge-${key}`);
+            const metaEl = document.getElementById(`monMeta-${key}`);
+            const warningEl = document.getElementById(`monWarningCard-${key}`);
+            const videoEl = document.getElementById(`monVideo-${key}`);
+
+            if (!imageEl || !badgeEl || !metaEl) return;
+
+            const hasPpeStatus = !!result?.ppe_status && !result?.error && !result?.ppe_status?.error;
+            const helmet = hasPpeStatus && !!result?.ppe_status?.helmet;
+            const vest = hasPpeStatus && !!result?.ppe_status?.vest;
+            const boots = hasPpeStatus && !!result?.ppe_status?.boots;
+            const errorMessage = result?.error || result?.ppe_status?.error || '';
+
+            [['monHelmCard', helmet], ['monVestCard', vest], ['monBootsCard', boots]].forEach(([prefix, status]) => {
+                const el = document.getElementById(`${prefix}-${key}`);
+                if (el) el.className = `ppe-item ${hasPpeStatus ? (status ? 'ok' : 'missing') : 'ok'}`;
+            });
+
+            const statusTextEl = badgeEl.querySelector('span:last-child');
+            badgeEl.className = `status-badge ${errorMessage || result?.warning ? 'status-badge--danger' : 'status-badge--ok'}`;
+            if (statusTextEl) statusTextEl.textContent = errorMessage ? 'Error' : (result?.warning ? 'Alert' : 'Online');
+
+            metaEl.textContent = [
+                camera.label,
+                errorMessage || (result?.timestamp ? `Update: ${new Date(result.timestamp).toLocaleTimeString('id-ID')}` : 'Menunggu inference'),
+            ].join(' • ');
+
+            if (videoEl && videoEl.srcObject && placeholderEl) {
+                placeholderEl.style.display = 'none';
+            }
+
+            if (result?.annotated_frame) {
+                imageEl.src = `data:image/jpeg;base64,${result.annotated_frame}`;
+                imageEl.style.display = 'block';
+                if (placeholderEl) placeholderEl.style.display = 'none';
+
+                if (monitorAnnotationTimers[key]) {
+                    clearTimeout(monitorAnnotationTimers[key]);
+                }
+                monitorAnnotationTimers[key] = setTimeout(() => {
+                    imageEl.removeAttribute('src');
+                    imageEl.style.display = 'none';
+                    delete monitorAnnotationTimers[key];
+                }, MONITOR_ANNOTATION_VISIBLE_MS);
+            } else {
+                if (monitorAnnotationTimers[key]) {
+                    clearTimeout(monitorAnnotationTimers[key]);
+                    delete monitorAnnotationTimers[key];
+                }
+                imageEl.removeAttribute('src');
+                imageEl.style.display = 'none';
+                if (placeholderEl) placeholderEl.style.display = videoEl?.srcObject ? 'none' : 'flex';
+            }
+
+            if (warningEl) {
+                if (errorMessage || result?.warning) {
+                    warningEl.textContent = errorMessage || result.warning;
+                    warningEl.style.display = 'block';
+                } else {
+                    warningEl.style.display = 'none';
+                }
+            }
+        }
+
+        function updateMonitorOverview(running, cameraCount, latestAlert) {
+            const connEl = document.getElementById('monConnStatus');
+            if (connEl) {
+                connEl.textContent = running ? `Running (${cameraCount || 0} kamera)` : 'Ready';
+                connEl.className = running ? 'text-success' : 'text-muted';
+            }
+
+            const warningEl = document.getElementById('monWarning');
+            const warningText = document.getElementById('monWarningText');
+            if (warningEl && warningText) {
+                warningEl.classList.toggle('show', !!latestAlert?.warning);
+                warningText.textContent = latestAlert?.warning || 'Tidak ada peringatan aktif';
+            }
+        }
+
+        async function loadMonitorPage() {
+            stopMonitorPolling();
+            stopAppCameraStreams();
+            stopMonitorStreams();
+            seenMonitorEvents.clear();
+            lastWarnedTime = 0;
+            const grid = document.getElementById('monCameraGrid');
+            if (grid) grid.innerHTML = '<div class="camera-grid__empty">Memuat kamera lokal...</div>';
+
+            try {
+                monitorDevices = await getAvailableMonitorCameras();
+                renderMonitorCards(monitorDevices);
+                await attachMonitorStreams(monitorDevices);
+                updateMonitorOverview(false, monitorDevices.length, null);
+            } catch (e) {
+                console.warn('Load monitor page error:', e);
+                if (grid) {
+                    grid.innerHTML = '<div class="camera-grid__empty">Gagal memuat kamera. Pastikan izin kamera sudah diberikan.</div>';
+                }
+            }
+        }
+
+        async function monitorCycle() {
+            if (!monRunning || monitorCaptureInProgress) return;
+            monitorCaptureInProgress = true;
+
+            try {
+                const cameras = monitorDevices.length ? monitorDevices : await getAvailableMonitorCameras();
+                monitorDevices = cameras;
+
+                let latestAlert = null;
+                for (const camera of cameras) {
+                    if (!monRunning) break;
+
+                    const key = cameraKey(camera.index, camera.deviceId);
+                    const videoEl = document.getElementById(`monVideo-${key}`);
+                    if (!videoEl || videoEl.videoWidth === 0 || videoEl.videoHeight === 0) {
+                        updateMonitorCard(camera, { error: 'Video belum siap', ppe_status: null });
+                        continue;
+                    }
+
+                    try {
+                        updateMonitorCard(camera, { ppe_status: null });
+                        const blob = await captureFrameBlob(videoEl, false);
+                        if (!blob) continue;
+
+                        const fd = new FormData();
+                        fd.append('file', blob, 'frame.jpg');
+                        fd.append('source_label', camera.label);
+
+                        const res = await fetch(`${API}/monitor/frame`, {
+                            method: 'POST',
+                            body: fd,
+                        });
+
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        const result = await res.json();
+                        result.camera_label = camera.label;
+                        result.timestamp = result.timestamp || new Date().toISOString();
+
+                        updateMonitorCard(camera, result);
+                        if (result.warning) {
+                            latestAlert = {
+                                camera_label: camera.label,
+                                timestamp: result.timestamp,
+                                warning: result.warning,
+                            };
+                            appendMonitorEvent(latestAlert);
+                        }
+                    } catch (e) {
+                        console.warn(`Monitor inference failed for ${camera.label}:`, e);
+                        updateMonitorCard(camera, {
+                            error: `Inference gagal: ${e.message}`,
+                            warning: '',
+                            annotated_frame: null,
+                            ppe_status: null,
+                        });
+                    }
+                }
+
+                updateMonitorOverview(true, cameras.length, latestAlert);
+            } finally {
+                monitorCaptureInProgress = false;
+            }
+        }
+
+        async function refreshMonitorStatus() {
+            if (!monRunning) return;
+            try {
+                await monitorCycle();
+            } finally {
+                if (monRunning) {
+                    monRefreshTimer = setTimeout(refreshMonitorStatus, MONITOR_REFRESH_MS);
+                }
+            }
+        }
+
+        async function startLocalMonitoring() {
+            monRunning = true;
+            setMonitorButtons(true);
+            const badgeEl = document.getElementById('alertBadge');
+            if (badgeEl) badgeEl.style.display = 'none';
+            try {
+                await loadMonitorPage();
+                if (typeof ensureInferenceReady === 'function') {
+                    ensureInferenceReady().catch(e => console.warn('Inference warmup skipped:', e));
+                }
+                await refreshMonitorStatus();
+            } catch (e) {
+                console.warn('Start local monitoring failed:', e);
+                monRunning = false;
+                setMonitorButtons(false);
+            }
+        }
+
+        async function stopLocalMonitoring() {
             monRunning = false;
-            monAbort?.abort();
-            document.getElementById('btnMonStart').disabled = false;
-            document.getElementById('btnMonStop').disabled = true;
-            document.getElementById('monLiveIndicator').style.display = 'none';
-            hideAnnotatedFrame(document.getElementById('monAnnotated'));
-            document.getElementById('monWarning').classList.remove('show');
-            document.getElementById('alertBadge').style.display = 'none';
-        });
+            stopMonitorPolling();
+            stopMonitorStreams();
+            setMonitorButtons(false);
+            const warningEl = document.getElementById('monWarning');
+            if (warningEl) warningEl.classList.remove('show');
+        }
+
+        document.getElementById('btnMonStart')?.addEventListener('click', startLocalMonitoring);
+        document.getElementById('btnMonStop')?.addEventListener('click', stopLocalMonitoring);
+        document.getElementById('btnMonRefresh')?.addEventListener('click', loadMonitorPage);
 
         // ===== REPORTS =====
         async function loadReport() {
@@ -2692,14 +3293,17 @@
             Object.values(streams).forEach(stream => {
                 stream.getTracks().forEach(track => track.stop());
             });
-            monAbort?.abort();
+            stopMonitorPolling();
+            stopMonitorStreams();
         });
     </script>
 
     <!-- ONNX Runtime for client-side inference -->
-    <script async src="https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/ort.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/ort.min.js"></script>
     
     <!-- K3Vision Client-Side Inference Engine -->
-    <script src="/inference.js"></script>
+    <script src="/static/inference.js"></script>
 </body>
 </html>
+
+

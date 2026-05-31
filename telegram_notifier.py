@@ -285,12 +285,6 @@ class TelegramNotifier:
         annotated_base64: str | None = None,
         blur_faces: bool = False,
     ) -> bool:
-        if photo_bytes:
-            if blur_faces:
-                photo_bytes = self._blur_faces(photo_bytes)
-            if self.send_photo(photo_bytes, caption):
-                return True
-
         if annotated_base64:
             try:
                 decoded_photo_bytes = base64.b64decode(annotated_base64)
@@ -301,6 +295,12 @@ class TelegramNotifier:
                 decoded_photo_bytes = self._blur_faces(decoded_photo_bytes)
 
             if decoded_photo_bytes and self.send_photo(decoded_photo_bytes, caption):
+                return True
+
+        if photo_bytes:
+            if blur_faces:
+                photo_bytes = self._blur_faces(photo_bytes)
+            if self.send_photo(photo_bytes, caption):
                 return True
 
         return self.send_message(caption)
