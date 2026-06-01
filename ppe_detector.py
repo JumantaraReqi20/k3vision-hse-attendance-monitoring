@@ -17,7 +17,7 @@ class _LocalPPEDetector:
         self.class_thresholds = {
             "human": 0.55,
             "helmet": 0.55,
-            "vest": 0.75,
+            "vest": 0.55,
             "boots": 0.55,
             "gloves": 0.60,
         }

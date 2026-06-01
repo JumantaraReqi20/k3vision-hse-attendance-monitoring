@@ -2405,28 +2405,10 @@
             try {
                 const blob = await captureFrameBlob(video);
                 
-                // ===== CLIENT-SIDE PPE INFERENCE =====
-                console.log('[Attendance] Running CLIENT-SIDE PPE detection...');
-                const ppeResult = await detectPPE(blob);
-                console.log('[Attendance] PPE Detection Complete:', ppeResult);
-                
-                if (ppeResult.error) {
-                    throw new Error(ppeResult.error);
-                }
-
-                if (!ppeResult.human) {
-                    console.warn('[Attendance] Human class not detected; continuing with PPE marked incomplete.');
-                    ppeResult.helmet = false;
-                    ppeResult.vest = false;
-                    ppeResult.boots = false;
-                }
-                
-                // ===== SERVER FACE IDENTIFICATION & VERIFICATION =====
+                // ===== SERVER-SIDE PPE DETECTION (accurate like monitoring!) =====
+                console.log('[Attendance] Sending to server for face ID + PPE detection...');
                 const fd = new FormData();
                 fd.append('file', blob, 'frame.jpg');
-                fd.append('ppe_helmet', ppeResult.helmet ? '1' : '0');
-                fd.append('ppe_vest', ppeResult.vest ? '1' : '0');
-                fd.append('ppe_boots', ppeResult.boots ? '1' : '0');
                 
                 const res = await fetch(`${API}/attendance/check`, { method: 'POST', body: fd });
                 if (!res.ok) {
@@ -2435,7 +2417,16 @@
                 }
                 const d = await res.json();
                 
-                // Update overlay badges with CLIENT-SIDE PPE results
+                // Extract PPE results from server response
+                const ppeResult = {
+                    helmet: d.helmet,
+                    vest: d.vest,
+                    boots: d.boots
+                };
+                
+                console.log('[Attendance] Server PPE Result:', ppeResult);
+                
+                // Update overlay badges with SERVER-SIDE PPE results
                 const updateBadge = (id, status, label) => {
                     const el = document.getElementById(id);
                     const dot = el.querySelector('.status-badge__dot');

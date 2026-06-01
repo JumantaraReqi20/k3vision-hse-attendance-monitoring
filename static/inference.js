@@ -6,6 +6,7 @@
 let ortSession = null;
 let modelReady = false;
 let inferenceInitPromise = null;
+let currentLetterboxInfo = null;  // Store letterbox info for coordinate transformation
 
 // Model configuration
 const MODEL_CONFIG = {
@@ -17,16 +18,16 @@ const MODEL_CONFIG = {
     classThresholds: {
         human: 0.55,
         helmet: 0.55,
-        vest: 0.75,
+        vest: 0.55,  // Lowered from 0.75 to 0.55 for consistency
         boots: 0.55,
         gloves: 0.60
     },
     minAreaRatio: {
-        human: 0.04,
-        helmet: 0.0015,
-        vest: 0.012,
-        boots: 0.0015,
-        gloves: 0.001
+        human: 0.02,      // Lowered from 0.04
+        helmet: 0.0005,   // Lowered from 0.0015
+        vest: 0.005,      // Lowered from 0.012
+        boots: 0.0005,    // Lowered from 0.0015
+        gloves: 0.0003    // Lowered from 0.001
     }
 };
 
@@ -165,32 +166,48 @@ function intersectsHuman(ppeBox, humanBoxes, width, height) {
     return humanBoxes.some(humanBox => centerInside(ppeBox, expandBox(humanBox, 0.08, width, height)));
 }
 
-function normalizeBox(x, y, w, h, originalWidth, originalHeight) {
-    const inputSize = MODEL_CONFIG.inputSize;
-    const scaleX = originalWidth / inputSize;
-    const scaleY = originalHeight / inputSize;
-
-    if (Math.max(x, y, w, h) <= 1.5) {
-        x *= inputSize;
-        y *= inputSize;
-        w *= inputSize;
-        h *= inputSize;
+function normalizeBox(x, y, w, h, letterboxInfo) {
+    if (!letterboxInfo) {
+        console.warn('[Inference] letterboxInfo missing, using fallback');
+        return { x1: 0, y1: 0, x2: 0, y2: 0 };
     }
 
-    const x1 = (x - w / 2) * scaleX;
-    const y1 = (y - h / 2) * scaleY;
-    const x2 = (x + w / 2) * scaleX;
-    const y2 = (y + h / 2) * scaleY;
+    const { originalWidth, originalHeight, scale, offsetX, offsetY } = letterboxInfo;
+
+    if (Math.max(x, y, w, h) <= 1.5) {
+        x *= MODEL_CONFIG.inputSize;
+        y *= MODEL_CONFIG.inputSize;
+        w *= MODEL_CONFIG.inputSize;
+        h *= MODEL_CONFIG.inputSize;
+    }
+
+    // Reverse letterbox transformation
+    // 1. Subtract offset (remove padding)
+    const x_unpadded = x - offsetX;
+    const y_unpadded = y - offsetY;
+    const w_unpadded = w;
+    const h_unpadded = h;
+    
+    // 2. Scale back to original resolution
+    const x1_orig = ((x_unpadded - w_unpadded / 2) / scale);
+    const y1_orig = ((y_unpadded - h_unpadded / 2) / scale);
+    const x2_orig = ((x_unpadded + w_unpadded / 2) / scale);
+    const y2_orig = ((y_unpadded + h_unpadded / 2) / scale);
 
     return {
-        x1: Math.max(0, Math.min(originalWidth, x1)),
-        y1: Math.max(0, Math.min(originalHeight, y1)),
-        x2: Math.max(0, Math.min(originalWidth, x2)),
-        y2: Math.max(0, Math.min(originalHeight, y2))
+        x1: Math.max(0, Math.min(originalWidth, x1_orig)),
+        y1: Math.max(0, Math.min(originalHeight, y1_orig)),
+        x2: Math.max(0, Math.min(originalWidth, x2_orig)),
+        y2: Math.max(0, Math.min(originalHeight, y2_orig))
     };
 }
 
-function addDetection(boxes, x, y, w, h, classScores, objectness, originalWidth, originalHeight) {
+function addDetection(boxes, x, y, w, h, classScores, objectness, letterboxInfo) {
+    if (!letterboxInfo) {
+        console.warn('[Inference] addDetection: No letterboxInfo');
+        return;
+    }
+    
     let maxClassConf = 0;
     let classIdx = 0;
 
@@ -205,12 +222,25 @@ function addDetection(boxes, x, y, w, h, classScores, objectness, originalWidth,
     const label = MODEL_CONFIG.classes[classIdx];
     const confidence = (objectness == null ? 1 : Number(objectness || 0)) * maxClassConf;
     const threshold = MODEL_CONFIG.classThresholds[label] ?? MODEL_CONFIG.confidence;
-    if (confidence < threshold) return;
+    
+    console.log(`[Inference] Raw detection: label=${label}, raw_conf=${confidence.toFixed(3)}, threshold=${threshold}`);
+    if (confidence < threshold) {
+        console.log(`  → Filtered by confidence (${confidence.toFixed(3)} < ${threshold})`);
+        return;
+    }
 
-    const coords = normalizeBox(Number(x), Number(y), Number(w), Number(h), originalWidth, originalHeight);
+    const coords = normalizeBox(Number(x), Number(y), Number(w), Number(h), letterboxInfo);
+    const { originalWidth, originalHeight } = letterboxInfo;
     const area = Math.max(0, coords.x2 - coords.x1) * Math.max(0, coords.y2 - coords.y1);
     const areaRatio = area / (originalWidth * originalHeight);
-    if (areaRatio < (MODEL_CONFIG.minAreaRatio[label] || 0)) return;
+    const minRatio = MODEL_CONFIG.minAreaRatio[label] || 0;
+    
+    console.log(`  → After normalization: box=[${coords.x1.toFixed(0)},${coords.y1.toFixed(0)},${coords.x2.toFixed(0)},${coords.y2.toFixed(0)}], area=${area.toFixed(0)}, ratio=${areaRatio.toFixed(5)}, minRatio=${minRatio}`);
+    
+    if (areaRatio < minRatio) {
+        console.log(`  → Filtered by area ratio (${areaRatio.toFixed(5)} < ${minRatio})`);
+        return;
+    }
 
     boxes.push({
         ...coords,
@@ -223,7 +253,7 @@ function addDetection(boxes, x, y, w, h, classScores, objectness, originalWidth,
 /**
  * Post-process model output
  */
-function postprocessOutput(output, originalWidth, originalHeight) {
+function postprocessOutput(output, letterboxInfo) {
     const predictions = output.data;
     const boxes = [];
 
@@ -245,7 +275,7 @@ function postprocessOutput(output, originalWidth, originalHeight) {
             const objectness = hasObjectness ? predictions[(4 * anchors) + i] : null;
             const classOffset = hasObjectness ? 5 : 4;
             const classScores = Array.from({ length: classCount }, (_, j) => predictions[((classOffset + j) * anchors) + i]);
-            addDetection(boxes, x, y, w, h, classScores, objectness, originalWidth, originalHeight);
+            addDetection(boxes, x, y, w, h, classScores, objectness, currentLetterboxInfo);
         }
     } else {
         const attrs = dims.length === 3 && (dims[2] === attrsWithoutObjectness || dims[2] === attrsWithObjectness)
@@ -266,13 +296,48 @@ function postprocessOutput(output, originalWidth, originalHeight) {
                 predictions[offset + 3],
                 classScores,
                 hasObjectness ? predictions[offset + 4] : null,
-                originalWidth,
-                originalHeight
+                currentLetterboxInfo
             );
         }
     }
     
     return nms(boxes, MODEL_CONFIG.nmsIoU);
+}
+
+/**
+ * Letterbox image to model input size (preserve aspect ratio with padding)
+ */
+function letterboxImage(imageSource, canvas) {
+    const ctx = canvas.getContext('2d');
+    const inputSize = MODEL_CONFIG.inputSize;
+    let originalWidth, originalHeight;
+    
+    if (imageSource instanceof HTMLCanvasElement) {
+        originalWidth = imageSource.width;
+        originalHeight = imageSource.height;
+    } else if (imageSource instanceof HTMLImageElement) {
+        originalWidth = imageSource.width;
+        originalHeight = imageSource.height;
+    }
+    
+    // Calculate scale to fit image in canvas while preserving aspect ratio
+    const scale = Math.min(inputSize / originalWidth, inputSize / originalHeight);
+    const scaledWidth = Math.round(originalWidth * scale);
+    const scaledHeight = Math.round(originalHeight * scale);
+    
+    // Center the image in the canvas
+    const offsetX = (inputSize - scaledWidth) / 2;
+    const offsetY = (inputSize - scaledHeight) / 2;
+    
+    // Clear canvas with gray padding (YOLO standard)
+    ctx.fillStyle = 'rgb(114, 114, 114)';
+    ctx.fillRect(0, 0, inputSize, inputSize);
+    
+    // Draw scaled image centered
+    ctx.drawImage(imageSource, offsetX, offsetY, scaledWidth, scaledHeight);
+    
+    currentLetterboxInfo = { originalWidth, originalHeight, scale, offsetX, offsetY, scaledWidth, scaledHeight };
+    return currentLetterboxInfo;
 }
 
 /**
@@ -284,23 +349,13 @@ async function detectPPE(imageSource) {
     }
     
     try {
-        // Create canvas and load image
+        // Create canvas and load image with letterboxing
         const canvas = document.createElement('canvas');
         canvas.width = MODEL_CONFIG.inputSize;
         canvas.height = MODEL_CONFIG.inputSize;
-        const ctx = canvas.getContext('2d');
         
-        // Draw image (assuming it's an HTMLImageElement, Blob, or canvas)
         let originalWidth, originalHeight;
-        if (imageSource instanceof HTMLCanvasElement) {
-            originalWidth = imageSource.width;
-            originalHeight = imageSource.height;
-            ctx.drawImage(imageSource, 0, 0, canvas.width, canvas.height);
-        } else if (imageSource instanceof HTMLImageElement) {
-            originalWidth = imageSource.width;
-            originalHeight = imageSource.height;
-            ctx.drawImage(imageSource, 0, 0, canvas.width, canvas.height);
-        } else if (imageSource instanceof Blob) {
+        if (imageSource instanceof Blob) {
             const url = URL.createObjectURL(imageSource);
             const img = new Image();
             await new Promise((resolve, reject) => {
@@ -308,11 +363,17 @@ async function detectPPE(imageSource) {
                 img.onerror = reject;
                 img.src = url;
             });
-            originalWidth = img.width;
-            originalHeight = img.height;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const letterboxInfo = letterboxImage(img, canvas);
+            originalWidth = letterboxInfo.originalWidth;
+            originalHeight = letterboxInfo.originalHeight;
             URL.revokeObjectURL(url);
+        } else {
+            const letterboxInfo = letterboxImage(imageSource, canvas);
+            originalWidth = letterboxInfo.originalWidth;
+            originalHeight = letterboxInfo.originalHeight;
         }
+        
+        console.log(`[Inference] Image: ${originalWidth}x${originalHeight} → Letterboxed to 640x640`);
         
         // Preprocess
         const inputTensor = preprocessImage(canvas);
@@ -325,16 +386,39 @@ async function detectPPE(imageSource) {
         const output = results.output0 || Object.values(results)[0];
         
         // Post-process
-        const detections = postprocessOutput(output, originalWidth, originalHeight);
+        const detections = postprocessOutput(output, currentLetterboxInfo);
         
-        console.log(`[Inference] Detected ${detections.length} objects`);
+        // Log detection details
+        console.log(`[Inference] ✓ Final detections after NMS: ${detections.length} objects`);
+        const detectionsByClass = {};
+        detections.forEach(d => {
+            if (!detectionsByClass[d.label]) detectionsByClass[d.label] = [];
+            detectionsByClass[d.label].push(d.conf.toFixed(3));
+        });
+        console.log('[Inference] Detections by class:', detectionsByClass);
+        detections.forEach(d => {
+            console.log(`  - ${d.label}: conf=${d.conf.toFixed(3)}, box=[${d.x1.toFixed(0)},${d.y1.toFixed(0)},${d.x2.toFixed(0)},${d.y2.toFixed(0)}]`);
+        });
         
-        // Group detections by class and only count PPE attached to a detected person
+        // Group detections by class
         const humanBoxes = detections.filter(d => d.label === 'human');
-        const ppeBoxes = detections.filter(d =>
-            ['helmet', 'vest', 'boots', 'gloves'].includes(d.label) &&
-            intersectsHuman(d, humanBoxes, originalWidth, originalHeight)
+        console.log(`[Inference] Humans detected: ${humanBoxes.length}`);
+        
+        // Get all PPE items (allow detection even without person)
+        const allPPEBoxes = detections.filter(d =>
+            ['helmet', 'vest', 'boots', 'gloves'].includes(d.label)
         );
+        
+        // Filter PPE to only those intersecting with person (if persons exist)
+        let ppeBoxes = allPPEBoxes;
+        if (humanBoxes.length > 0) {
+            const { originalWidth, originalHeight } = currentLetterboxInfo;
+            ppeBoxes = allPPEBoxes.filter(d => intersectsHuman(d, humanBoxes, originalWidth, originalHeight));
+            console.log(`[Inference] PPE attached to persons: ${ppeBoxes.length}`);
+        } else {
+            console.log(`[Inference] No persons detected, using all PPE detections: ${ppeBoxes.length}`);
+        }
+        
         const ppeDetected = {
             human: humanBoxes.length > 0,
             helmet: ppeBoxes.some(d => d.label === 'helmet'),
@@ -343,6 +427,8 @@ async function detectPPE(imageSource) {
             gloves: ppeBoxes.some(d => d.label === 'gloves'),
             boxes: [...humanBoxes, ...ppeBoxes]
         };
+        
+        console.log('[Inference] Final PPE Result:', { helmet: ppeDetected.helmet, vest: ppeDetected.vest, boots: ppeDetected.boots });
         
         return ppeDetected;
     } catch (error) {

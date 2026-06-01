@@ -90,22 +90,9 @@ def identify_worker(file: UploadFile = File(...)):
     raise HTTPException(status_code=404, detail="Face not recognized or not registered")
 
 @router.post("/attendance/check")
-def check_attendance(
-    file: UploadFile = File(...),
-    ppe_helmet: str = Form(default="0"),
-    ppe_vest: str = Form(default="0"),
-    ppe_boots: str = Form(default="0")
-):
+def check_attendance(file: UploadFile = File(...)):
     image_bytes = file.file.read()
     logger.info("[Attendance] /attendance/check received %s bytes", len(image_bytes))
-    
-    # Client-side PPE detection results
-    client_ppe_result = {
-        "helmet": ppe_helmet == "1",
-        "vest": ppe_vest == "1",
-        "boots": ppe_boots == "1"
-    }
-    logger.info("[Attendance] Client-side PPE results: %s", client_ppe_result)
     
     # 1. Verify worker by face identification (server-side)
     logger.info("[Attendance] Starting face identification")
@@ -125,19 +112,16 @@ def check_attendance(
         logger.info("[Attendance] Duplicate accepted attendance blocked for %s", worker_name)
         raise HTTPException(status_code=403, detail=f"{worker_name} sudah memiliki absensi diterima hari ini.")
 
-    # 3. Use CLIENT-SIDE PPE results (NO server inference)
-    ppe_status = {
-        "person_detected": True,  # We assume client always detects if sending results
-        "helmet": client_ppe_result["helmet"],
-        "vest": client_ppe_result["vest"],
-        "boots": client_ppe_result["boots"],
-        "gloves": False,  # Not required
-        "boxes": [],  # Client handles visualization
-        "annotated_base64": None,  # Client handles annotation
-        "error": None,
-    }
+    # 3. Run SERVER-SIDE PPE detection (same as monitoring - accurate!)
+    logger.info("[Attendance] Running server-side PPE detection for %s", worker_name)
+    ppe_status = ppe_det.predict(image_bytes)
     
-    logger.info("[Attendance] Using client-side PPE results for %s", worker_name)
+    if ppe_status.get("error"):
+        logger.error("[Attendance] PPE detection error: %s", ppe_status["error"])
+        raise HTTPException(status_code=500, detail=f"PPE detection failed: {ppe_status['error']}")
+    
+    logger.info("[Attendance] PPE detection result: helmet=%s vest=%s boots=%s", 
+                ppe_status["helmet"], ppe_status["vest"], ppe_status["boots"])
 
     # 4. Logic Acceptance/Rejection
     is_complete = ppe_status["helmet"] and ppe_status["vest"] and ppe_status["boots"]
