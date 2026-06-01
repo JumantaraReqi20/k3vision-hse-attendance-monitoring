@@ -13,7 +13,21 @@ const MODEL_CONFIG = {
     inputSize: 640,
     confidence: 0.5,
     nmsIoU: 0.45,
-    classes: ['human', 'helmet', 'vest', 'boots', 'gloves']
+    classes: ['human', 'helmet', 'vest', 'boots', 'gloves'],
+    classThresholds: {
+        human: 0.55,
+        helmet: 0.55,
+        vest: 0.75,
+        boots: 0.55,
+        gloves: 0.60
+    },
+    minAreaRatio: {
+        human: 0.04,
+        helmet: 0.0015,
+        vest: 0.012,
+        boots: 0.0015,
+        gloves: 0.001
+    }
 };
 
 /**
@@ -129,57 +143,133 @@ function calculateIoU(box1, box2) {
     return union > 0 ? intersection / union : 0;
 }
 
+function expandBox(box, ratio, width, height) {
+    const padX = (box.x2 - box.x1) * ratio;
+    const padY = (box.y2 - box.y1) * ratio;
+
+    return {
+        x1: Math.max(0, box.x1 - padX),
+        y1: Math.max(0, box.y1 - padY),
+        x2: Math.min(width, box.x2 + padX),
+        y2: Math.min(height, box.y2 + padY)
+    };
+}
+
+function centerInside(child, parent) {
+    const cx = (child.x1 + child.x2) / 2;
+    const cy = (child.y1 + child.y2) / 2;
+    return parent.x1 <= cx && cx <= parent.x2 && parent.y1 <= cy && cy <= parent.y2;
+}
+
+function intersectsHuman(ppeBox, humanBoxes, width, height) {
+    return humanBoxes.some(humanBox => centerInside(ppeBox, expandBox(humanBox, 0.08, width, height)));
+}
+
+function normalizeBox(x, y, w, h, originalWidth, originalHeight) {
+    const inputSize = MODEL_CONFIG.inputSize;
+    const scaleX = originalWidth / inputSize;
+    const scaleY = originalHeight / inputSize;
+
+    if (Math.max(x, y, w, h) <= 1.5) {
+        x *= inputSize;
+        y *= inputSize;
+        w *= inputSize;
+        h *= inputSize;
+    }
+
+    const x1 = (x - w / 2) * scaleX;
+    const y1 = (y - h / 2) * scaleY;
+    const x2 = (x + w / 2) * scaleX;
+    const y2 = (y + h / 2) * scaleY;
+
+    return {
+        x1: Math.max(0, Math.min(originalWidth, x1)),
+        y1: Math.max(0, Math.min(originalHeight, y1)),
+        x2: Math.max(0, Math.min(originalWidth, x2)),
+        y2: Math.max(0, Math.min(originalHeight, y2))
+    };
+}
+
+function addDetection(boxes, x, y, w, h, classScores, objectness, originalWidth, originalHeight) {
+    let maxClassConf = 0;
+    let classIdx = 0;
+
+    for (let j = 0; j < MODEL_CONFIG.classes.length; j++) {
+        const classConf = Number(classScores[j] || 0);
+        if (classConf > maxClassConf) {
+            maxClassConf = classConf;
+            classIdx = j;
+        }
+    }
+
+    const label = MODEL_CONFIG.classes[classIdx];
+    const confidence = (objectness == null ? 1 : Number(objectness || 0)) * maxClassConf;
+    const threshold = MODEL_CONFIG.classThresholds[label] ?? MODEL_CONFIG.confidence;
+    if (confidence < threshold) return;
+
+    const coords = normalizeBox(Number(x), Number(y), Number(w), Number(h), originalWidth, originalHeight);
+    const area = Math.max(0, coords.x2 - coords.x1) * Math.max(0, coords.y2 - coords.y1);
+    const areaRatio = area / (originalWidth * originalHeight);
+    if (areaRatio < (MODEL_CONFIG.minAreaRatio[label] || 0)) return;
+
+    boxes.push({
+        ...coords,
+        conf: confidence,
+        label,
+        classIdx
+    });
+}
+
 /**
  * Post-process model output
  */
 function postprocessOutput(output, originalWidth, originalHeight) {
     const predictions = output.data;
-    const numDetections = predictions.length / (5 + MODEL_CONFIG.classes.length);
-    
     const boxes = [];
-    const scaleX = originalWidth / MODEL_CONFIG.inputSize;
-    const scaleY = originalHeight / MODEL_CONFIG.inputSize;
-    
-    for (let i = 0; i < numDetections; i++) {
-        const offset = i * (5 + MODEL_CONFIG.classes.length);
-        
-        // YOLO output: [x, y, w, h, objectness, class_scores...]
-        const x = predictions[offset];
-        const y = predictions[offset + 1];
-        const w = predictions[offset + 2];
-        const h = predictions[offset + 3];
-        const objectness = predictions[offset + 4];
-        
-        // Get class scores
-        let maxClassConf = 0;
-        let classIdx = 0;
-        for (let j = 0; j < MODEL_CONFIG.classes.length; j++) {
-            const classConf = predictions[offset + 5 + j];
-            if (classConf > maxClassConf) {
-                maxClassConf = classConf;
-                classIdx = j;
-            }
+
+    const dims = output.dims || [];
+    const classCount = MODEL_CONFIG.classes.length;
+    const attrsWithoutObjectness = 4 + classCount;
+    const attrsWithObjectness = 5 + classCount;
+
+    if (dims.length === 3 && (dims[1] === attrsWithoutObjectness || dims[1] === attrsWithObjectness)) {
+        const attrs = dims[1];
+        const anchors = dims[2];
+        const hasObjectness = attrs === attrsWithObjectness;
+
+        for (let i = 0; i < anchors; i++) {
+            const x = predictions[i];
+            const y = predictions[anchors + i];
+            const w = predictions[(2 * anchors) + i];
+            const h = predictions[(3 * anchors) + i];
+            const objectness = hasObjectness ? predictions[(4 * anchors) + i] : null;
+            const classOffset = hasObjectness ? 5 : 4;
+            const classScores = Array.from({ length: classCount }, (_, j) => predictions[((classOffset + j) * anchors) + i]);
+            addDetection(boxes, x, y, w, h, classScores, objectness, originalWidth, originalHeight);
         }
-        
-        // Filter by confidence
-        const totalConf = objectness * maxClassConf;
-        if (totalConf < MODEL_CONFIG.confidence) continue;
-        
-        // Convert to box coordinates
-        const x1 = (x - w / 2) * scaleX;
-        const y1 = (y - h / 2) * scaleY;
-        const x2 = (x + w / 2) * scaleX;
-        const y2 = (y + h / 2) * scaleY;
-        
-        boxes.push({
-            x1: Math.max(0, x1),
-            y1: Math.max(0, y1),
-            x2: Math.min(originalWidth, x2),
-            y2: Math.min(originalHeight, y2),
-            conf: totalConf,
-            label: MODEL_CONFIG.classes[classIdx],
-            classIdx: classIdx
-        });
+    } else {
+        const attrs = dims.length === 3 && (dims[2] === attrsWithoutObjectness || dims[2] === attrsWithObjectness)
+            ? dims[2]
+            : (predictions.length % attrsWithoutObjectness === 0 ? attrsWithoutObjectness : attrsWithObjectness);
+        const hasObjectness = attrs === attrsWithObjectness;
+        const numDetections = Math.floor(predictions.length / attrs);
+
+        for (let i = 0; i < numDetections; i++) {
+            const offset = i * attrs;
+            const classOffset = hasObjectness ? 5 : 4;
+            const classScores = Array.from({ length: classCount }, (_, j) => predictions[offset + classOffset + j]);
+            addDetection(
+                boxes,
+                predictions[offset],
+                predictions[offset + 1],
+                predictions[offset + 2],
+                predictions[offset + 3],
+                classScores,
+                hasObjectness ? predictions[offset + 4] : null,
+                originalWidth,
+                originalHeight
+            );
+        }
     }
     
     return nms(boxes, MODEL_CONFIG.nmsIoU);
@@ -239,15 +329,19 @@ async function detectPPE(imageSource) {
         
         console.log(`[Inference] Detected ${detections.length} objects`);
         
-        // Group detections by class
+        // Group detections by class and only count PPE attached to a detected person
         const humanBoxes = detections.filter(d => d.label === 'human');
+        const ppeBoxes = detections.filter(d =>
+            ['helmet', 'vest', 'boots', 'gloves'].includes(d.label) &&
+            intersectsHuman(d, humanBoxes, originalWidth, originalHeight)
+        );
         const ppeDetected = {
             human: humanBoxes.length > 0,
-            helmet: detections.some(d => d.label === 'helmet'),
-            vest: detections.some(d => d.label === 'vest'),
-            boots: detections.some(d => d.label === 'boots'),
-            gloves: detections.some(d => d.label === 'gloves'),
-            boxes: detections
+            helmet: ppeBoxes.some(d => d.label === 'helmet'),
+            vest: ppeBoxes.some(d => d.label === 'vest'),
+            boots: ppeBoxes.some(d => d.label === 'boots'),
+            gloves: ppeBoxes.some(d => d.label === 'gloves'),
+            boxes: [...humanBoxes, ...ppeBoxes]
         };
         
         return ppeDetected;

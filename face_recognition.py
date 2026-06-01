@@ -16,7 +16,6 @@ class FaceRecognizer:
         self.model_name = "Facenet"
         self.detector_backend = "opencv"
         self.distance_threshold = 0.40
-        self.max_image_dim = 960
         self.is_trained = False
         self.embeddings = []
         self._deepface_lock = threading.Lock()
@@ -27,28 +26,7 @@ class FaceRecognizer:
         return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     def _resize_for_inference(self, img):
-        if img is None:
-            return None
-
-        height, width = img.shape[:2]
-        max_dim = max(height, width)
-        if max_dim <= self.max_image_dim:
-            return img
-
-        scale = self.max_image_dim / max_dim
-        resized = cv2.resize(
-            img,
-            (int(width * scale), int(height * scale)),
-            interpolation=cv2.INTER_AREA,
-        )
-        logger.info(
-            "[FaceRec] Resized frame from %sx%s to %sx%s before inference",
-            width,
-            height,
-            resized.shape[1],
-            resized.shape[0],
-        )
-        return resized
+        return img
 
     def _extract_largest_face(self, img):
         try:

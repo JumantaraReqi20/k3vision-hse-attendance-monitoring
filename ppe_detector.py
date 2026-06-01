@@ -15,10 +15,10 @@ class _LocalPPEDetector:
         self.required_ppe = ("helmet", "vest", "boots")
         self.max_image_dim = 1280
         self.class_thresholds = {
-            "human": 0.686,
-            "helmet": 0.686,
-            "vest": 0.686,
-            "boots": 0.686,
+            "human": 0.55,
+            "helmet": 0.55,
+            "vest": 0.75,
+            "boots": 0.55,
             "gloves": 0.60,
         }
         self.min_area_ratio = {

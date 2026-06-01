@@ -2413,6 +2413,13 @@
                 if (ppeResult.error) {
                     throw new Error(ppeResult.error);
                 }
+
+                if (!ppeResult.human) {
+                    console.warn('[Attendance] Human class not detected; continuing with PPE marked incomplete.');
+                    ppeResult.helmet = false;
+                    ppeResult.vest = false;
+                    ppeResult.boots = false;
+                }
                 
                 // ===== SERVER FACE IDENTIFICATION & VERIFICATION =====
                 const fd = new FormData();
